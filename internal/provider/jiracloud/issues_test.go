@@ -242,7 +242,17 @@ func TestReadStatusMappingLimitsAndCancellation(t *testing.T) {
 	if _, e := s.Search(context.Background(), domain.SearchRequest{JQL: "x", PageSize: 1}); e == nil {
 		t.Fatal("oversized response accepted")
 	}
-	client = setup(t, func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() })
+	// A POST body may keep net/http from observing a disconnected client until
+	// the handler reads it. Always release the fixture before Server.Close,
+	// including when cancellation happens during the TLS handshake.
+	release := make(chan struct{})
+	defer close(release)
+	client = setup(t, func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	})
 	s.Client = client
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
