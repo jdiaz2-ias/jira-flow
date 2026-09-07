@@ -1,0 +1,84 @@
+// Package domain defines provider-independent work items and workflow contracts.
+package domain
+
+import "time"
+
+type StatusCategory string
+
+const (
+	CategoryTodo       StatusCategory = "todo"
+	CategoryInProgress StatusCategory = "in-progress"
+	CategoryDone       StatusCategory = "done"
+	CategoryUnknown    StatusCategory = "unknown"
+)
+
+type NamedID struct{ ID, Name string }
+type User struct{ ID, DisplayName string }
+type IssueRef struct{ ID, Key string }
+type Status struct {
+	ID, Name string
+	Category StatusCategory
+}
+
+// LocalDate represents a calendar date without a UTC offset or time of day.
+// Provider adapters must validate it before constructing domain values.
+type LocalDate struct {
+	Year  int
+	Month time.Month
+	Day   int
+}
+
+type Issue struct {
+	Ref                             IssueRef
+	Summary, ProjectID, IssueTypeID string
+	Status                          Status
+	Resolution                      *NamedID
+	Assignee                        *User
+	UpdatedAt                       time.Time
+	DueDate                         *LocalDate
+	URL                             string
+}
+
+// Blocks contain normalized content, never terminal escapes or raw HTML.
+type Block struct {
+	Kind, Text, URL string
+	Children        []Block
+}
+
+type IssueDetail struct {
+	Issue            Issue
+	Description      []Block
+	Subtasks         []Issue
+	SubtasksComplete bool
+	Links            []IssueLink
+}
+type IssueLink struct {
+	Type   string
+	Target IssueRef
+}
+type DetailOptions struct{ IncludeDescription, IncludeSubtasks, IncludeLinks bool }
+
+type SearchRequest struct {
+	JQL       string
+	Fields    []string
+	PageSize  int
+	PageToken string
+}
+
+type IssuePage struct {
+	Issues        []Issue
+	NextPageToken string
+	Complete      bool
+}
+
+// A percentage is absent unless its denominator is known and positive.
+type Progress struct {
+	Status                                                      Status
+	Resolution                                                  *NamedID
+	SubtasksDone, SubtasksVisible                               int
+	SubtasksComplete                                            bool
+	SubtasksPercent                                             *float64
+	TimeSpentSeconds, RemainingSeconds, OriginalEstimateSeconds *int64
+	FetchedAt                                                   time.Time
+	Stale                                                       bool
+}

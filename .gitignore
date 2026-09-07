@@ -1,0 +1,9 @@
+/bin/
+/dist/
+/.tools/
+/coverage.out
+*.test
+.DS_Store
+.env
+.env.*
+!.env.example
