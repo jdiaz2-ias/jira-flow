@@ -15,6 +15,8 @@ type FieldSpec struct {
 	ID, Name, Type, ItemType string
 	Required                 bool
 	AllowedValues            []NamedID
+	HasDefault               bool
+	Operations               []string
 }
 
 // FieldValue is a JSON-compatible value validated by the workflow adapter.

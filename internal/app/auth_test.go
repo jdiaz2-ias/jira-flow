@@ -215,3 +215,36 @@ func TestLoginPreservesDefaultProject(t *testing.T) {
 		t.Fatal(c, e)
 	}
 }
+
+func TestLoginKeepsWorkflowRulesOnlyForSameSiteAndAccount(t *testing.T) {
+	a, _ := authFixture(t)
+	ctx := context.Background()
+	p := pfixture("u@example.com")
+	if _, e := a.Login(ctx, "work", p, ports.NewSecret("first"), false); e != nil {
+		t.Fatal(e)
+	}
+	rule := domain.WorkflowRule{ProjectID: "1", IssueTypeID: "2", Intent: domain.IntentDone, FromStatusID: "3", TransitionID: "4", ExpectedToStatusID: "5"}
+	if e := config.Update(ctx, a.Path, func(c *config.Config) error {
+		saved := c.Profiles["work"]
+		saved.WorkflowRules = []domain.WorkflowRule{rule}
+		c.Profiles["work"] = saved
+		return nil
+	}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := a.Login(ctx, "work", p, ports.NewSecret("renewed"), false); e != nil {
+		t.Fatal(e)
+	}
+	c, e := config.Load(a.Path)
+	if e != nil || len(c.Profiles["work"].WorkflowRules) != 1 {
+		t.Fatal(c, e)
+	}
+	p.SiteURL = "https://other.atlassian.net"
+	if _, e := a.Login(ctx, "work", p, ports.NewSecret("other"), false); e != nil {
+		t.Fatal(e)
+	}
+	c, e = config.Load(a.Path)
+	if e != nil || len(c.Profiles["work"].WorkflowRules) != 0 {
+		t.Fatal(c, e)
+	}
+}

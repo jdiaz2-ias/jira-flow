@@ -23,6 +23,9 @@ import (
 
 // Dependencies allow command tests to exercise full flows without a real keyring.
 type Dependencies struct {
+	Workflow    func(config.Profile, ports.Secret) (workflowSession, error)
+	Interactive func() bool
+	Prompt      func(context.Context, string) (string, error)
 	IssueReader func(config.Profile, ports.Secret) (ports.IssueReader, error)
 	Cache       *cache.Memory
 	Browser     ports.Browser
@@ -302,6 +305,7 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 	}))
 	root.AddCommand(auth, profiles, cfg)
 	addReading(root, deps, access, &profile, &email, emitRead)
+	addWorkflow(root, deps, access, &profile, &email, emitRead)
 }
 
 func readToken(in io.Reader) (ports.Secret, error) {

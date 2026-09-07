@@ -46,6 +46,9 @@ func Failure(err error) Envelope {
 	var public *domain.Error
 	if errors.As(err, &public) {
 		e.Code, e.Message, e.Retryable = string(public.Kind), public.Message, public.Retryable
+		if public.Details != nil {
+			e.Details = public.Details
+		}
 	}
 	return Envelope{SchemaVersion: 1, OK: false, Meta: map[string]any{}, Warnings: []string{}, Error: e}
 }

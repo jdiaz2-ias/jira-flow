@@ -25,13 +25,14 @@ type Auth struct {
 	CredentialRef string `json:"credential_ref,omitempty"`
 }
 type Profile struct {
-	DefaultProject        string   `json:"default_project,omitempty"`
-	RetiredCredentialRefs []string `json:"retired_credential_refs,omitempty"`
-	Provider              string   `json:"provider"`
-	SiteURL               string   `json:"site_url"`
-	CloudID               string   `json:"cloud_id,omitempty"`
-	Auth                  Auth     `json:"auth"`
-	AccountID             string   `json:"account_id,omitempty"`
+	WorkflowRules         []domain.WorkflowRule `json:"workflow_rules,omitempty"`
+	DefaultProject        string                `json:"default_project,omitempty"`
+	RetiredCredentialRefs []string              `json:"retired_credential_refs,omitempty"`
+	Provider              string                `json:"provider"`
+	SiteURL               string                `json:"site_url"`
+	CloudID               string                `json:"cloud_id,omitempty"`
+	Auth                  Auth                  `json:"auth"`
+	AccountID             string                `json:"account_id,omitempty"`
 }
 type Config struct {
 	SchemaVersion int                `json:"schema_version"`
@@ -92,6 +93,18 @@ func (p Profile) BaseURL() (string, error) {
 	}
 }
 func (p Profile) Validate() error {
+	seen := map[string]bool{}
+	for _, rule := range p.WorkflowRules {
+		if err := rule.Validate(); err != nil {
+			return err
+		}
+		key := rule.ProjectID + "/" + rule.IssueTypeID + "/" + string(rule.Intent) + "/" + rule.FromStatusID
+		if seen[key] {
+			return invalid("Duplicate workflow rule for the same scope.")
+		}
+		seen[key] = true
+	}
+
 	if p.Provider != "jira-cloud" {
 		return invalid("Unsupported provider; use jira-cloud.")
 	}

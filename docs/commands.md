@@ -1,4 +1,4 @@
-# F2 CLI contract
+# CLI contract (F1–F3)
 
 | Command | Behavior |
 | --- | --- |
@@ -57,3 +57,18 @@ Read flags: `--timeout 30s` (up to 10m), `--token-stdin`, `--refresh`, `--offlin
 `table` is supported in `mine`, `list`, and `search`; other commands accept plain/JSON. `--no-color` and `--ascii` keep output unadorned; they do not alter Unicode content from Jira. `--verbose` prints the command to stderr without tokens, bodies, or JQL. JSON implies `--no-input`.
 
 `link` uses the browsable site URL and does not query Jira or the keyring. In text it prints only the URL and a newline. `open` uses `/usr/bin/open` on macOS or `xdg-open` on Linux without a shell; if there is no graphical session/launcher, it returns code 11 and keeps the URL.
+
+## F3: transitions
+
+| Command | Behavior |
+| --- | --- |
+| `transitions KEY` | Read fresh transition IDs, destination states, and field requirements |
+| `transition KEY --transition-id ID` | Apply an explicitly selected transition, including loops |
+| `start KEY` | Resolve a direct transition to In progress |
+| `done KEY` | Resolve a direct transition to Done; multiple candidates require selection |
+| `close KEY` | Require an explicit ID or validated mapping |
+| `workflow map KEY --intent done --transition-id ID` | Save a local mapping for the issue's current project, type, and state |
+
+Mutation commands accept `--transition-id` (alias `--id`), `--fields-file`, `--dry-run`, `--yes`, and `--no-record`. They also support `--timeout`, `--token-stdin`, and global profile, output, and input flags. `transitions` accepts table output; mutations use plain or JSON. JSON implies no-input. Without a terminal, applying requires `--yes`; this flag never resolves ambiguity or supplies missing fields. Mapping writes local configuration and does not transition the issue.
+
+Validation or ambiguity returns 6, stale preparation/mapping returns 7, and an uncertain write or accepted but unverified result returns 9. A no-op returns 0 without sending a write. See [workflows](workflows.md) for examples, field formats, and outcome semantics.
