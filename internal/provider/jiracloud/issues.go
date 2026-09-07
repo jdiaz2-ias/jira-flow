@@ -178,6 +178,12 @@ func (s *Session) GetIssue(ctx context.Context, ref domain.IssueRef, options dom
 		return result, err
 	}
 	fields := append([]string(nil), ListFields...)
+	for _, id := range options.Fields {
+		if !domain.ValidFieldID(id) || id == "comment" {
+			return result, failure(domain.InvalidInput, "Invalid requested verification field.")
+		}
+		fields = append(fields, id)
+	}
 	if options.IncludeDescription {
 		fields = append(fields, "description")
 	}
@@ -194,6 +200,22 @@ func (s *Session) GetIssue(ctx context.Context, ref domain.IssueRef, options dom
 	var w wireIssue
 	if json.Unmarshal(b, &w) != nil {
 		return result, failure(domain.Unavailable, "Invalid Jira detail.")
+	}
+	var values struct {
+		Fields map[string]json.RawMessage `json:"fields"`
+	}
+	if json.Unmarshal(b, &values) != nil {
+		return result, failure(domain.Unavailable, "Invalid issue fields.")
+	}
+	result.Values = map[string]domain.FieldValue{}
+	for _, id := range options.Fields {
+		if raw, ok := values.Fields[id]; ok {
+			var value any
+			if json.Unmarshal(raw, &value) != nil {
+				return result, failure(domain.Unavailable, "Invalid verification field value.")
+			}
+			result.Values[id] = value
+		}
 	}
 	result.Issue, err = s.issue(w)
 	if err != nil {

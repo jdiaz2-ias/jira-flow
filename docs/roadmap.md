@@ -30,6 +30,19 @@ Evidence and limits: [validation-f1.md](validation-f1.md).
 
 Evidence and limits: [validation-f2.md](validation-f2.md). The user confirmed F1's real connection; that confirmation does not yet accredit F2 reads.
 
+## F3: workflow transitions implemented
+
+- [x] Live transition IDs, destinations, field schemas, and allowed values.
+- [x] `transitions`, `transition`, `start`, `done`, `close`, and `workflow map`.
+- [x] Basic field prompts, fields files, explicit selection, dry runs, and confirmation.
+- [x] Exact context mappings, destination validation, no-op and ambiguity handling.
+- [x] Fresh revalidation, one write attempt, cache invalidation, and bounded verification.
+- [x] Minimal private action records with pruning after seven days and `--no-record`.
+- [x] Synthetic HTTP and CLI tests, race detection, and four platform builds.
+- [ ] F3 acceptance against an authorized real Jira issue.
+
+Evidence and limits: [validation-f3.md](validation-f3.md).
+
 ## Next increment
 
-F3: transitions. F4: progress/scripting. F5: TUI. F6: packaging/acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).
+F4: progress/scripting. F5: TUI. F6: packaging/acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).

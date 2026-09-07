@@ -55,12 +55,14 @@ type IssueDetail struct {
 	Comments         *CommentPage
 	History          *HistoryPage
 	Warnings         []string
+	Values           map[string]FieldValue
 }
 type IssueLink struct {
 	Type   string
 	Target IssueRef
 }
 type DetailOptions struct {
+	Fields                                              []string
 	IncludeDescription, IncludeSubtasks, IncludeLinks   bool
 	IncludeComments, IncludeHistory, All                bool
 	SectionLimit, PageSize, CommentsStart, HistoryStart int

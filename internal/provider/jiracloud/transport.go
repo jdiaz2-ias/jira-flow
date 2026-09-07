@@ -19,6 +19,9 @@ import (
 )
 
 func (c *Client) read(ctx context.Context, p config.Profile, secret ports.Secret, method, path string, body any) ([]byte, error) {
+	if method != http.MethodGet && !(method == http.MethodPost && path == "/rest/api/3/search/jql") {
+		return nil, failure(domain.InvalidInput, "The retrying transport only supports reads.")
+	}
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}

@@ -2,7 +2,7 @@
 
 A CLI for working with Jira from Linux and macOS. Executable: `jflow`.
 
-Current status: **F2, reads and links**. Includes profiles, Jira Cloud authentication, issue queries, details, comments/history, and links. See [validation F2](docs/validation-f2.md) for results and limits.
+Current status: **F3, workflow transitions**. Includes profiles, Jira Cloud authentication, issue queries, details, links, and confirmed workflow transitions with field validation and result verification. See [validation F3](docs/validation-f3.md) for results and limits.
 
 ## Quick start
 
@@ -128,7 +128,7 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 ## Continue implementation
 
 - [Full implementation plan](docs/implementation-plan.md).
-- [Phase status and next increment F3](docs/roadmap.md).
+- [Phase status and next increment F4](docs/roadmap.md).
 - [Architecture and pinned versions](docs/architecture.md).
 - [Authentication and endpoint/scope catalog](docs/authentication.md).
 - [JSON contract and errors](docs/json-contract.md).
@@ -137,4 +137,4 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 - [F1 validation log](docs/validation-f1.md).
 - [F2 validation log](docs/validation-f2.md).
 
-The next phase is F3: transitions and workflows, with preparation, confirmation, and change verification. F2 remains read-only; it does not modify issues.
+The next phase is F4: progress and scripting. Workflow commands can now modify issues after confirmation; start with `jflow transitions APP-123` and `jflow start APP-123 --dry-run`. See the [workflow guide](docs/workflows.md) before applying changes.
