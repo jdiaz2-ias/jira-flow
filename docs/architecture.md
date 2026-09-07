@@ -1,8 +1,8 @@
-# Arquitectura F0
+# Arquitectura F1
 
 El dominio y los puertos dependen únicamente de Go estándar. CLI y futura TUI consumen casos de uso; los adaptadores implementan los puertos. La prueba de integración `TestCoreHasNoUIOrProviderDependencies` verifica esa separación con el grafo real de imports.
 
-Tipos de dominio presentes: issues, identidad, fechas locales, bloques normalizados, consulta/página, progreso, campos de transición, intención, acción preparada, resultado de aplicación y errores. No hay clientes HTTP vacíos ni adaptadores que devuelvan éxitos ficticios. Se crearán al implementar F1/F2.
+Tipos de dominio presentes: issues, identidad, fechas locales, bloques normalizados, consulta/página, progreso, campos de transición, intención, acción preparada, resultado de aplicación y errores. F1 añade `config` para persistencia versionada, `app.Access` para casos de uso de acceso, `provider/jiracloud` para HTTP y `secretstore` para credenciales del sistema. CLI compone las dependencias y las pruebas pueden inyectarlas.
 
 `Secret` redacta formato, JSON y slog; `Reveal` es una salida explícita para adaptadores de autenticación/almacenamiento. La redacción evita errores de registro habituales, no cifra memoria ni garantiza borrado de strings Go.
 
@@ -15,7 +15,7 @@ Tipos de dominio presentes: issues, identidad, fechas locales, bloques normaliza
 | Bubble Tea | 2.0.9 | Compatibilidad F0; TUI en F5 |
 | Bubbles | 2.2.1 | Componentes de TUI |
 | Lip Gloss | 2.0.6 | Estilos de TUI |
-| go-keyring | 0.2.8 | Base prevista de SecretStore |
+| go-keyring | 0.2.8 | Auditoría histórica foundation; backend activo con procesos propios |
 | x/term | 0.45.0 | Entrada oculta/detección de terminal en F1 |
 | govulncheck | 1.7.0 | Análisis ejecutado por `make security` |
 | GoReleaser | 2.18.1 | Versión reservada en Makefile; empaquetado en F6 |
@@ -26,6 +26,6 @@ CI fija checkout/setup-go por SHA, usa versiones explícitas de SO/toolchain y n
 
 ## Organización futura
 
-Agregar `config`, `secrets`, `transport` y `provider/jiracloud` en F1/F2; `workflow` en F3; `cache` persistente en F4; `tui` en F5. No crear paquetes vacíos para fingir implementación. El formato público se mantendrá en `output` incluso cuando cambien los tipos internos.
+Ampliar `provider/jiracloud` en F2; `workflow` en F3; `cache` persistente en F4; `tui` en F5. No crear paquetes vacíos para fingir implementación. El formato público se mantendrá en `output` incluso cuando cambien los tipos internos.
 
 Referencias consultadas el 2026-09-06: [Go](https://go.dev/dl/?mode=json), [Cobra](https://github.com/spf13/cobra/releases/tag/v1.10.2), [Charm](https://charm.land/blog/v2/), [keyring](https://github.com/zalando/go-keyring/tree/v0.2.8).

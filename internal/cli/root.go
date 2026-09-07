@@ -17,11 +17,15 @@ import (
 
 // Run owns error rendering and process exit semantics without calling os.Exit.
 func Run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer, info app.VersionInfo) int {
+	return RunWithDependencies(ctx, args, in, out, errOut, info, Dependencies{})
+}
+
+func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer, info app.VersionInfo, deps Dependencies) int {
 	format := requestedFormat(args)
 	root := &cobra.Command{
 		Use:          "jflow",
 		Short:        "Jira Flow: Jira desde tu terminal",
-		Long:         "Jira Flow · base técnica F0.\nDisponibles: ayuda y versión. La conexión a Jira se añadirá en F1/F2.",
+		Long:         "Jira Flow · perfiles y autenticación Jira Cloud.",
 		SilenceUsage: true, SilenceErrors: true,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -75,10 +79,10 @@ func Run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		},
 	})
 	root.SetHelpCommand(&cobra.Command{
-		Use: "help [comando]", Short: "Mostrar ayuda", Args: cobra.MaximumNArgs(1),
+		Use: "help [comando...]", Short: "Mostrar ayuda", Args: cobra.ArbitraryArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			target := root
-			if len(args) == 1 {
+			if len(args) > 0 {
 				var remaining []string
 				var err error
 				target, remaining, err = root.Find(args)
@@ -88,6 +92,14 @@ func Run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 			}
 			return target.Help()
 		},
+	})
+	addAccess(root, deps, func(data any, plain string) error {
+		if format == "json" {
+			writeErr = output.Write(out, output.Success(data))
+		} else {
+			_, writeErr = fmt.Fprintln(out, plain)
+		}
+		return nil
 	})
 	err := root.ExecuteContext(ctx)
 	if err != nil {
