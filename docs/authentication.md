@@ -1,6 +1,6 @@
-# Autenticación prevista y catálogo para F1–F4
+# Autenticación F1 y catálogo para F2–F4
 
-F0 no autentica ni almacena credenciales. Esta especificación permite implementar los adaptadores posteriores con fixtures sintéticos.
+F1 implementa autenticación personal Cloud y `myself`. El catálogo de issues y transiciones continúa como especificación para fases posteriores. Contrato REST y tokens reconsultados el 2026-09-07; ningún tenant real fue utilizado.
 
 ## Métodos personales Cloud
 
@@ -40,4 +40,4 @@ Fuentes: [myself](https://developer.atlassian.com/cloud/jira/platform/rest/v3/ap
 
 ## Credenciales y macOS
 
-El puerto `SecretStore` ya está definido; todavía no hay backend invocado por la CLI. Ver [ADR-004](adr/004-secrets.md) para la revisión de la versión fijada y sus límites. En F1, keyring disponible permite persistencia; una sesión sin keyring utiliza token efímero por entorno/stdin. No hay fallback de archivo de texto plano.
+F1 implementa `SecretStore` con procesos cancelables: `/usr/bin/security -i` en macOS y `secret-tool` en Linux. Los secretos viajan por stdin, nunca por argv. Ver [ADR-004](adr/004-secrets.md). El llavero disponible permite persistencia; una sesión sin llavero utiliza token efímero por entorno/stdin con `--no-store`. No hay fallback de archivo de texto plano. La configuración contiene únicamente una referencia aleatoria; cada perfil queda asociado al sitio y account ID verificados.

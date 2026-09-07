@@ -1,18 +1,30 @@
-# Contrato CLI de F0
+# Contrato CLI de F1
 
-`jflow version` produce texto sin colores ni acceso a red. `--format=json` produce un solo objeto con `schema_version`, `ok`, `data`, `meta`, `warnings` y `error`. La opción puede ir antes o después del subcomando.
+| Comando | Comportamiento |
+| --- | --- |
+| `version` | Versión, sin red ni configuración |
+| `auth login` | Valida `myself`, guarda perfil y opcionalmente credencial |
+| `auth status` | Comprueba disponibilidad local del token; no valida con Jira |
+| `auth logout` | Elimina perfil y credenciales locales; no revoca en Atlassian |
+| `profile list` | Lista perfiles y marca el activo persistido |
+| `profile use NOMBRE` | Cambia perfil activo |
+| `me` | Consulta y muestra identidad Jira |
+| `doctor` | Comprueba configuración, fuente de credencial, identidad, conectividad y stdin TTY |
+| `config path` | Muestra ruta de configuración |
+| `config validate` | Valida esquema sin mostrar contenido |
 
-`jflow --help`, `jflow help` y `jflow help version` muestran solo los comandos actuales. Con formato JSON, la ayuda está en `data.help`. No hay completado instalado ni TUI automática todavía.
+`--profile` selecciona temporalmente un perfil; `--email` cambia el correo de esa invocación. Precedencia: flags > `JFLOW_PROFILE`/`JFLOW_EMAIL` > perfil > correo global. `auth login` guarda el perfil validado y lo activa. Solo se conserva el correo de entorno al hacer un login explícito.
 
-Reglas:
+`auth login` recibe `--site`, `--method=api-token-unscoped|api-token-scoped`, `--cloud-id`, `--token-stdin` y `--no-store`. En un terminal puede solicitar datos faltantes y token oculto. `--no-input`, `JFLOW_NO_INPUT=1` o `JFLOW_NO_INPUT=true` desactivan las preguntas; stdin explícito continúa permitido. `me` y `doctor` también aceptan `--token-stdin`.
 
-- Sin subcomando: código 2 y diagnóstico de uso; en JSON es un error estructurado.
-- Comando desconocido, argumentos extra o flags inválidos: código 2.
-- Solo se admite `plain` o `json`; `table` aparecerá con colecciones en F2.
-- `--` termina las opciones. Lo que sigue es un argumento posicional.
-- Se respeta la última aparición de `--format`.
-- Errores de escritura no se reportan como éxito: código 1.
-- Cancelación de un comando: código 130.
-- No se imprimen argumentos arbitrarios en diagnósticos de parseo.
+La credencial explícita de stdin tiene precedencia sobre `JFLOW_TOKEN`, y esta sobre el llavero. Un token de entorno nunca se persiste automáticamente. Sin llavero, usar `--no-store` y suministrar nuevamente la credencial en cada invocación. Nunca se acepta `--token VALOR`.
 
-La ausencia de TUI en F0 es temporal y explícita. Los comportamientos finales del plan se incorporarán conforme se implementen sus funciones, conservando scripts de `version`.
+`--format=json` produce un solo objeto con `schema_version`, `ok`, `data`, `meta`, `warnings` y `error`. Puede ir antes o después del subcomando. La ayuda JSON está en `data.help`; `jflow help auth login` funciona. La salida normal usa texto sin colores.
+
+- Sin subcomando: código 2; todavía no hay TUI automática.
+- Argumentos/configuración inválidos: 2; autenticación: 3; permisos: 4; no encontrado: 5; servicio no disponible: 8; cancelación: 130.
+- Solo `plain` o `json`. Se respeta la última aparición de `--format`; `--` termina las opciones.
+- Fallos de escritura: código 1, nunca éxito.
+- Los diagnósticos de parseo no repiten argumentos arbitrarios; errores HTTP no incluyen cuerpos ni Authorization.
+
+`doctor` valida los permisos de identidad, no los de issues ni transiciones. Si usa entorno/stdin, indica `keyring_checked=false`; no afirma que el llavero funcione.

@@ -1,28 +1,22 @@
 # Estado de implementación
 
-## F0: base técnica
+## F0: base técnica completada
 
-- [x] Repositorio local, rama main y README.
-- [x] Módulo local, toolchain y dependencias fijadas.
-- [x] CLI `version`/ayuda y formato JSON.
-- [x] Dominio, puertos y catálogo de errores iniciales.
-- [x] Pruebas de contrato, binario y separación de capas.
-- [x] Auditoría de fuente macOS keyring y prueba de regresión.
-- [x] ADRs y fixtures sintéticos.
-- [x] Catálogo de endpoints/scopes para próximos comandos.
-- [x] CI configurada para Linux/macOS; publicación desactivada.
+CLI, dominio/puertos, JSON v1, dependencias fijadas, pruebas base, fixtures y CI. Evidencia histórica: [validation-f0.md](validation-f0.md). El repositorio ya está publicado en GitHub bajo `jdiaz2-ias/jira-flow`.
 
-La evidencia de ejecución, compilación cruzada y límites se registra en [validation-f0.md](validation-f0.md). “CI configurada” no significa que haya corrido en GitHub; este repositorio sigue siendo local.
+## F1: configuración y acceso implementados
 
-## F1: siguiente incremento
+- [x] Rutas Linux/macOS, JSON v1, permisos privados, bloqueo y escritura atómica.
+- [x] Perfiles, precedencia y rechazo de esquemas desconocidos; F0 no tenía formato persistido que migrar.
+- [x] SecretStore cancelable, referencias aleatorias, validación de límites y credenciales efímeras.
+- [x] HTTP con TLS/proxy/CA corporativa, cancelación, límites y rechazo de redirects.
+- [x] Ambos métodos de token personal Cloud y mapeo de `myself`.
+- [x] `auth login/logout/status`, `profile list/use`, `me`, `doctor`, `config path/validate`.
+- [x] Pruebas con HTTPS simulado, keyring inyectado y Keychain real macOS con secreto sintético.
+- [ ] Validación real con tenant autorizado y Secret Service Linux; no bloquean las pruebas sintéticas, pero limitan las afirmaciones de compatibilidad.
 
-1. Implementar rutas y configuración JSON versionada con perfiles y precedencia.
-2. Implementar `SecretStore`, credenciales efímeras y validación de límites antes de guardar.
-3. Añadir transporte HTTP con cancelación y redacción, sin fuga de Authorization por redirects.
-4. Implementar ambos métodos de token personal y mapear `myself` al dominio.
-5. Exponer `auth login/logout/status`, `profile list/use`, `me`, `doctor`.
-6. Probar con `httptest`, fixtures y keyring inyectado; validación real solo con tenant autorizado.
+Evidencia y límites: [validation-f1.md](validation-f1.md).
 
-## Fases posteriores
+## Siguiente incremento
 
-F2: consultas/enlaces. F3: transiciones. F4: progreso y scripting. F5: TUI. F6: empaquetado/aceptación. F7: productividad. Consultar el [plan completo](implementation-plan.md) para criterios de salida y detalles.
+F2: consultas y enlaces (`mine`, `search`, `show`, `link`, `open`). F3: transiciones. F4: progreso/scripting. F5: TUI. F6: empaquetado/aceptación. F7: productividad. Criterios en el [plan completo](implementation-plan.md).

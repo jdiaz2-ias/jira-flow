@@ -43,9 +43,9 @@ build-all:
 
 check: fmt-check lint test test-foundation
 
-# F0 validates configuration/build readiness; publishing is a separate F6 task.
+# Builds validate platform readiness; publishing is a separate F6 task.
 release-check: build-all
-	@printf '%s\n' 'F0: builds verificados; empaquetado/publicación pendientes de F6.'
+	@printf '%s\n' 'Builds verificados; empaquetado/publicación pendientes de F6.'
 
 security:
 	$(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) -tags=foundation ./...
