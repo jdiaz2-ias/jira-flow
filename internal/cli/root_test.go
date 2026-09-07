@@ -29,7 +29,7 @@ func TestCommandContract(t *testing.T) {
 		{"help-version", []string{"help", "version", "--format=json"}, 0, true, "help"},
 		{"empty", nil, 2, false, ""},
 		{"empty-json", []string{"--format=json"}, 2, true, "invalid_input"},
-		{"unknown", []string{"mine", "--format=json"}, 2, true, "invalid_input"},
+		{"unknown", []string{"not-implemented", "--format=json"}, 2, true, "invalid_input"},
 		{"unknown-flag", []string{"version", "--no-such-flag", "--format=json"}, 2, true, "invalid_input"},
 		{"unknown-help", []string{"help", "missing", "--format=json"}, 2, true, "invalid_input"},
 		{"parse-stops-early", []string{"--format=plain", "version", "--bad", "--format=json"}, 2, true, "invalid_input"},

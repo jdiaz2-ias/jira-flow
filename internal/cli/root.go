@@ -25,7 +25,7 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 	root := &cobra.Command{
 		Use:          "jflow",
 		Short:        "Jira Flow: Jira desde tu terminal",
-		Long:         "Jira Flow · perfiles y autenticación Jira Cloud.",
+		Long:         "Jira Flow · consultas, perfiles y autenticación Jira Cloud.",
 		SilenceUsage: true, SilenceErrors: true,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -37,21 +37,32 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 	root.SetOut(out)
 	root.SetErr(errOut)
 	root.SetArgs(args)
-	root.PersistentFlags().StringVar(&format, "format", format, "Formato de salida: plain o json")
-	root.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+	root.PersistentFlags().StringVar(&format, "format", format, "Formato de salida: plain, table (listados) o json")
+	root.PersistentFlags().Bool("no-color", false, "Salida sin colores")
+	root.PersistentFlags().Bool("ascii", false, "Salida sin adornos gráficos")
+	root.PersistentFlags().Bool("verbose", false, "Diagnóstico básico redactado por stderr")
+	root.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		if err := ctx.Err(); err != nil {
 			return &domain.Error{Kind: domain.Canceled, Message: "Operación cancelada.", Cause: err}
 		}
-		if format != "plain" && format != "json" {
-			return &domain.Error{Kind: domain.InvalidInput, Message: "Formato inválido. Usa plain o json."}
+		if format != "plain" && format != "json" && !(format == "table" && cmd.Annotations["collection"] == "true") {
+			return &domain.Error{Kind: domain.InvalidInput, Message: "Formato inválido. Usa plain, json o table para listados."}
+		}
+		if format == "json" {
+			_ = root.PersistentFlags().Set("no-input", "true")
+		}
+		verbose, _ := root.PersistentFlags().GetBool("verbose")
+		if verbose {
+			fmt.Fprintln(errOut, "Ejecutando "+cmd.CommandPath())
 		}
 		return nil
 	}
 	var writeErr error
+	rendered := false
 	// Help participates in the JSON contract, including `jflow help version`.
 	root.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
 		if format != "plain" && format != "json" {
-			writeErr = &domain.Error{Kind: domain.InvalidInput, Message: "Formato inválido. Usa plain o json."}
+			writeErr = &domain.Error{Kind: domain.InvalidInput, Message: "Formato inválido. Usa plain, json o table para listados."}
 			return
 		}
 		var buf bytes.Buffer
@@ -100,6 +111,14 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 			_, writeErr = fmt.Fprintln(out, plain)
 		}
 		return nil
+	}, func(envelope output.Envelope, plain string, operationErr error) error {
+		if format == "json" {
+			writeErr = output.Write(out, envelope)
+			rendered = true
+		} else if plain != "" {
+			_, writeErr = fmt.Fprintln(out, plain)
+		}
+		return operationErr
 	})
 	err := root.ExecuteContext(ctx)
 	if err != nil {
@@ -114,6 +133,9 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 			fmt.Fprintln(errOut, "No se pudo escribir la salida.")
 			return 1
 		}
+	}
+	if rendered {
+		return domain.ExitCode(err)
 	}
 	if err == nil {
 		return 0

@@ -25,6 +25,7 @@ type Auth struct {
 	CredentialRef string `json:"credential_ref,omitempty"`
 }
 type Profile struct {
+	DefaultProject        string   `json:"default_project,omitempty"`
 	RetiredCredentialRefs []string `json:"retired_credential_refs,omitempty"`
 	Provider              string   `json:"provider"`
 	SiteURL               string   `json:"site_url"`

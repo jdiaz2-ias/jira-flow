@@ -1,4 +1,4 @@
-# Arquitectura F1
+# Arquitectura F2
 
 El dominio y los puertos dependen únicamente de Go estándar. CLI y futura TUI consumen casos de uso; los adaptadores implementan los puertos. La prueba de integración `TestCoreHasNoUIOrProviderDependencies` verifica esa separación con el grafo real de imports.
 
@@ -24,8 +24,14 @@ Tipos de dominio presentes: issues, identidad, fechas locales, bloques normaliza
 
 CI fija checkout/setup-go por SHA, usa versiones explícitas de SO/toolchain y no publica. El lint inicial es `go vet`, fijado por Go; añadir otro linter solo cuando aporte reglas necesarias.
 
+## Lectura F2
+
+`jiracloud.Session` implementa `ports.IssueReader` con un perfil y una credencial por invocación. `app.Reader` verifica la identidad, recorre páginas, firma cursores y mantiene una caché aislada. `output` convierte dominio a DTOs públicos y texto; no exporta directamente structs internos al contrato JSON. `browser` implementa el puerto de apertura con ejecutables y argumentos separados.
+
+Los listados no cargan detalles por fila. Las secciones de comentarios/historial usan sus propios offsets. La caché vive solo en memoria; la persistencia se reserva para F4.
+
 ## Organización futura
 
-Ampliar `provider/jiracloud` en F2; `workflow` en F3; `cache` persistente en F4; `tui` en F5. No crear paquetes vacíos para fingir implementación. El formato público se mantendrá en `output` incluso cuando cambien los tipos internos.
+Ampliar `provider/jiracloud` y `workflow` en F3; `cache` persistente en F4; `tui` en F5. No crear paquetes vacíos para fingir implementación. El formato público se mantendrá en `output` incluso cuando cambien los tipos internos.
 
 Referencias consultadas el 2026-09-06: [Go](https://go.dev/dl/?mode=json), [Cobra](https://github.com/spf13/cobra/releases/tag/v1.10.2), [Charm](https://charm.land/blog/v2/), [keyring](https://github.com/zalando/go-keyring/tree/v0.2.8).

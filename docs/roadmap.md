@@ -17,6 +17,19 @@ CLI, dominio/puertos, JSON v1, dependencias fijadas, pruebas base, fixtures y CI
 
 Evidencia y límites: [validation-f1.md](validation-f1.md).
 
+## F2: lectura y enlaces implementados
+
+- [x] JQL escapado, filtros, orden permitido y selección de campos de listado.
+- [x] POST search/jql, cursores por perfil/identidad/consulta, deduplicación y resultados parciales.
+- [x] `mine`, `list`, `search`, `show`, descripción ADF, subtareas y vínculos.
+- [x] Comentarios e historial paginados bajo demanda, con offsets y límites por sección.
+- [x] `link`, `open`, adaptadores nativos y proyecto predeterminado.
+- [x] Caché acotada por proceso, refresco, offline explícito y salida texto/tabla/JSON.
+- [x] Pruebas HTTP, CLI sin TTY, cancelación, reintentos, límites e aislamiento.
+- [ ] Validación de consultas F2 contra un tenant real.
+
+Evidencia y límites: [validation-f2.md](validation-f2.md). El usuario confirmó la conexión real de F1; esa confirmación no acredita aún las lecturas de F2.
+
 ## Siguiente incremento
 
-F2: consultas y enlaces (`mine`, `search`, `show`, `link`, `open`). F3: transiciones. F4: progreso/scripting. F5: TUI. F6: empaquetado/aceptación. F7: productividad. Criterios en el [plan completo](implementation-plan.md).
+F3: transiciones. F4: progreso/scripting. F5: TUI. F6: empaquetado/aceptación. F7: productividad. Criterios en el [plan completo](implementation-plan.md).

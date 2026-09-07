@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -19,10 +20,14 @@ import (
 	"jira-flow.local/jflow/internal/ports"
 )
 
-type Client struct{ HTTP *http.Client }
+type Client struct {
+	HTTP  *http.Client
+	Sleep func(context.Context, time.Duration) error
+}
 
 func New(caFile string) (*Client, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext
 	if caFile != "" {
 		pem, err := os.ReadFile(caFile)
 		if err != nil {

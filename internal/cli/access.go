@@ -12,8 +12,10 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"jira-flow.local/jflow/internal/app"
+	"jira-flow.local/jflow/internal/cache"
 	"jira-flow.local/jflow/internal/config"
 	"jira-flow.local/jflow/internal/domain"
+	"jira-flow.local/jflow/internal/output"
 	"jira-flow.local/jflow/internal/ports"
 	"jira-flow.local/jflow/internal/provider/jiracloud"
 	"jira-flow.local/jflow/internal/secretstore"
@@ -21,12 +23,15 @@ import (
 
 // Dependencies allow command tests to exercise full flows without a real keyring.
 type Dependencies struct {
-	Env     func(string) string
-	Secrets ports.SecretStore
-	Jira    app.IdentityClient
+	IssueReader func(config.Profile, ports.Secret) (ports.IssueReader, error)
+	Cache       *cache.Memory
+	Browser     ports.Browser
+	Env         func(string) string
+	Secrets     ports.SecretStore
+	Jira        app.IdentityClient
 }
 
-func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) error) {
+func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) error, emitRead func(output.Envelope, string, error) error) {
 	var profile, email string
 	var noInput bool
 	root.PersistentFlags().StringVar(&profile, "profile", "", "Perfil para esta invocación")
@@ -296,6 +301,7 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		return emit(map[string]bool{"valid": true}, "Configuración válida.")
 	}))
 	root.AddCommand(auth, profiles, cfg)
+	addReading(root, deps, access, &profile, &email, emitRead)
 }
 func readToken(in io.Reader) (ports.Secret, error) {
 	b, err := io.ReadAll(io.LimitReader(bufio.NewReader(in), 65537))
