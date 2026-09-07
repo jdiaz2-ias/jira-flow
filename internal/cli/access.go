@@ -34,9 +34,9 @@ type Dependencies struct {
 func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) error, emitRead func(output.Envelope, string, error) error) {
 	var profile, email string
 	var noInput bool
-	root.PersistentFlags().StringVar(&profile, "profile", "", "Perfil para esta invocación")
-	root.PersistentFlags().StringVar(&email, "email", "", "Correo de Atlassian para esta invocación")
-	root.PersistentFlags().BoolVar(&noInput, "no-input", false, "No solicitar entrada interactiva")
+	root.PersistentFlags().StringVar(&profile, "profile", "", "Profile for this invocation")
+	root.PersistentFlags().StringVar(&email, "email", "", "Atlassian email for this invocation")
+	root.PersistentFlags().BoolVar(&noInput, "no-input", false, "Do not request interactive input")
 	access := func() (app.Access, error) {
 		env := deps.Env
 		if env == nil {
@@ -44,7 +44,7 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		}
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return app.Access{}, &domain.Error{Kind: domain.InvalidInput, Message: "No se pudo resolver el directorio personal."}
+			return app.Access{}, &domain.Error{Kind: domain.InvalidInput, Message: "Could not resolve home directory."}
 		}
 		paths := config.ResolvePaths(runtime.GOOS, home, env)
 		store := deps.Secrets
@@ -61,10 +61,10 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 	command := func(use, short string, run func(*cobra.Command, []string) error) *cobra.Command {
 		return &cobra.Command{Use: use, Short: short, Args: cobra.NoArgs, RunE: run}
 	}
-	auth := &cobra.Command{Use: "auth", Short: "Autenticación personal con Jira Cloud"}
+	auth := &cobra.Command{Use: "auth", Short: "Personal authentication with Jira Cloud"}
 	var site, method, cloud string
 	var stdin, noStore bool
-	login := command("login", "Validar una cuenta y configurar su perfil", func(cmd *cobra.Command, _ []string) error {
+	login := command("login", "Validate an account and set up its profile", func(cmd *cobra.Command, _ []string) error {
 		a, err := access()
 		if err != nil {
 			return err
@@ -108,7 +108,7 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		inputFile, isFile := cmd.InOrStdin().(*os.File)
 		interactive = interactive && isFile && term.IsTerminal(int(inputFile.Fd()))
 		if interactive {
-			fmt.Fprintln(cmd.ErrOrStderr(), "Crea un token personal: https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/")
+			fmt.Fprintln(cmd.ErrOrStderr(), "Create a personal token: https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/")
 			// Read one byte at a time so prompts never buffer token input ahead of ReadPassword.
 			prompt := func(label string, value *string) error {
 				if *value != "" {
@@ -127,27 +127,27 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 						b = append(b, one[0])
 					}
 					if e != nil {
-						return &domain.Error{Kind: domain.InvalidInput, Message: "Entrada incompleta."}
+						return &domain.Error{Kind: domain.InvalidInput, Message: "Incomplete input."}
 					}
 				}
-				return &domain.Error{Kind: domain.InvalidInput, Message: "Entrada demasiado larga."}
+				return &domain.Error{Kind: domain.InvalidInput, Message: "Input too long."}
 			}
 			for _, item := range []struct {
 				label string
 				value *string
-			}{{"Perfil", &name}, {"Sitio HTTPS", &p.SiteURL}, {"Correo", &p.Auth.Email}} {
+			}{{"Profile", &name}, {"HTTPS Site", &p.SiteURL}, {"Email", &p.Auth.Email}} {
 				if err := prompt(item.label, item.value); err != nil {
 					return err
 				}
 			}
 			if p.Auth.Method == "api-token-scoped" {
-				if err := prompt("Cloud ID real del sitio", &p.CloudID); err != nil {
+				if err := prompt("Real Cloud ID of the site", &p.CloudID); err != nil {
 					return err
 				}
 			}
 		}
 		if !config.ValidName(name) {
-			return &domain.Error{Kind: domain.InvalidInput, Message: "Indica --profile NOMBRE."}
+			return &domain.Error{Kind: domain.InvalidInput, Message: "Provide --profile NAME."}
 		}
 		if err := p.Validate(); err != nil {
 			return err
@@ -160,16 +160,16 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 			token = ports.NewSecret(envToken)
 			persist = false
 		} else if interactive {
-			fmt.Fprint(cmd.ErrOrStderr(), "API token (entrada oculta): ")
+			fmt.Fprint(cmd.ErrOrStderr(), "API token (hidden input): ")
 			var b []byte
 			b, err = term.ReadPassword(int(inputFile.Fd()))
 			fmt.Fprintln(cmd.ErrOrStderr())
 			token = ports.NewSecret(string(b))
 			if err != nil {
-				err = &domain.Error{Kind: domain.InvalidInput, Message: "No se pudo leer el token."}
+				err = &domain.Error{Kind: domain.InvalidInput, Message: "Could not read token."}
 			}
 		} else {
-			return &domain.Error{Kind: domain.Authentication, Message: "Proporciona JFLOW_TOKEN o --token-stdin; no se acepta --token VALOR."}
+			return &domain.Error{Kind: domain.Authentication, Message: "Provide JFLOW_TOKEN or --token-stdin; --token VALUE is not accepted."}
 		}
 		if err != nil {
 			return err
@@ -178,18 +178,18 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		if err != nil {
 			return err
 		}
-		text := fmt.Sprintf("Perfil %s: %s (%s).", result.Profile, result.DisplayName, result.AccountID)
+		text := fmt.Sprintf("Profile %s: %s (%s).", result.Profile, result.DisplayName, result.AccountID)
 		if !persist {
-			text += " Token efímero: vuelve a proporcionarlo en cada invocación."
+			text += " Ephemeral token: provide it again on every invocation."
 		}
 		return emit(result, text)
 	})
-	login.Flags().StringVar(&site, "site", "", "URL HTTPS del sitio Jira Cloud")
-	login.Flags().StringVar(&method, "method", "api-token-unscoped", "api-token-unscoped o api-token-scoped")
-	login.Flags().StringVar(&cloud, "cloud-id", "", "Cloud ID real para tokens con scopes")
-	login.Flags().BoolVar(&stdin, "token-stdin", false, "Leer el token desde stdin")
-	login.Flags().BoolVar(&noStore, "no-store", false, "Validar sin guardar el token en el llavero")
-	auth.AddCommand(login, command("status", "Consultar fuente local de credenciales (sin validación de red)", func(cmd *cobra.Command, _ []string) error {
+	login.Flags().StringVar(&site, "site", "", "HTTPS URL of the Jira Cloud site")
+	login.Flags().StringVar(&method, "method", "api-token-unscoped", "api-token-unscoped or api-token-scoped")
+	login.Flags().StringVar(&cloud, "cloud-id", "", "Real Cloud ID for scoped tokens")
+	login.Flags().BoolVar(&stdin, "token-stdin", false, "Read token from stdin")
+	login.Flags().BoolVar(&noStore, "no-store", false, "Validate without saving token in keyring")
+	auth.AddCommand(login, command("status", "Check local credential source (no network validation)", func(cmd *cobra.Command, _ []string) error {
 		a, e := access()
 		if e != nil {
 			return e
@@ -198,8 +198,8 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		if e != nil {
 			return e
 		}
-		return emit(r, fmt.Sprintf("Perfil %s: credencial disponible en %s; no verificada con Jira.", r.Profile, r.Source))
-	}), command("logout", "Eliminar el perfil y su credencial local", func(cmd *cobra.Command, _ []string) error {
+		return emit(r, fmt.Sprintf("Profile %s: credential available in %s; not verified with Jira.", r.Profile, r.Source))
+	}), command("logout", "Delete the profile and its local credential", func(cmd *cobra.Command, _ []string) error {
 		a, e := access()
 		if e != nil {
 			return e
@@ -208,14 +208,14 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		if e != nil {
 			return e
 		}
-		text := "Perfil y credencial local eliminados. El token no se revoca en Atlassian."
+		text := "Profile and local credential deleted. The token is not revoked in Atlassian."
 		if r["environment_token_present"] == true {
-			text += " JFLOW_TOKEN sigue presente en el entorno."
+			text += " JFLOW_TOKEN is still present in the environment."
 		}
 		return emit(r, text)
 	}))
-	profiles := &cobra.Command{Use: "profile", Short: "Administrar perfiles locales"}
-	profiles.AddCommand(command("list", "Listar perfiles y marcar el activo", func(_ *cobra.Command, _ []string) error {
+	profiles := &cobra.Command{Use: "profile", Short: "Manage local profiles"}
+	profiles.AddCommand(command("list", "List profiles and mark the active one", func(_ *cobra.Command, _ []string) error {
 		a, e := access()
 		if e != nil {
 			return e
@@ -234,7 +234,7 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		}
 		return emit(r, strings.TrimSuffix(b.String(), "\n"))
 	}))
-	use := command("use NOMBRE", "Seleccionar el perfil activo", func(cmd *cobra.Command, args []string) error {
+	use := command("use NOMBRE", "Select the active profile", func(cmd *cobra.Command, args []string) error {
 		a, e := access()
 		if e != nil {
 			return e
@@ -242,13 +242,13 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		if e = a.Use(cmd.Context(), args[0]); e != nil {
 			return e
 		}
-		return emit(map[string]string{"active_profile": args[0]}, "Perfil activo: "+args[0])
+		return emit(map[string]string{"active_profile": args[0]}, "Active profile: "+args[0])
 	})
 	use.Args = cobra.ExactArgs(1)
 	profiles.AddCommand(use)
 	for _, kind := range []string{"me", "doctor"} {
 		var tokenStdin bool
-		cmd := command(kind, map[string]string{"me": "Mostrar la identidad autenticada", "doctor": "Comprobar configuración, credencial y conectividad Jira"}[kind], func(cmd *cobra.Command, _ []string) error {
+		cmd := command(kind, map[string]string{"me": "Show the authenticated identity", "doctor": "Check configuration, credential, and Jira connectivity"}[kind], func(cmd *cobra.Command, _ []string) error {
 			a, e := access()
 			if e != nil {
 				return e
@@ -275,21 +275,21 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 				if f, ok := cmd.InOrStdin().(*os.File); ok {
 					tty = term.IsTerminal(int(f.Fd()))
 				}
-				return emit(map[string]any{"identity": r, "configuration": "ok", "connectivity": "ok", "authentication": "ok", "credential_source": source, "keyring_checked": source == "keyring", "stdin_tty": tty}, "Configuración, autenticación y conexión Jira correctas. Perfil: "+r.Profile)
+				return emit(map[string]any{"identity": r, "configuration": "ok", "connectivity": "ok", "authentication": "ok", "credential_source": source, "keyring_checked": source == "keyring", "stdin_tty": tty}, "Configuration, authentication, and Jira connection OK. Profile: "+r.Profile)
 			}
-			return emit(r, fmt.Sprintf("%s (%s) · perfil %s", r.DisplayName, r.AccountID, r.Profile))
+			return emit(r, fmt.Sprintf("%s (%s) · profile %s", r.DisplayName, r.AccountID, r.Profile))
 		})
-		cmd.Flags().BoolVar(&tokenStdin, "token-stdin", false, "Leer credencial efímera desde stdin")
+		cmd.Flags().BoolVar(&tokenStdin, "token-stdin", false, "Read ephemeral credential from stdin")
 		root.AddCommand(cmd)
 	}
-	cfg := &cobra.Command{Use: "config", Short: "Inspeccionar configuración local"}
-	cfg.AddCommand(command("path", "Mostrar ruta de configuración", func(_ *cobra.Command, _ []string) error {
+	cfg := &cobra.Command{Use: "config", Short: "Inspect local configuration"}
+	cfg.AddCommand(command("path", "Show configuration path", func(_ *cobra.Command, _ []string) error {
 		a, e := access()
 		if e != nil {
 			return e
 		}
 		return emit(map[string]string{"path": a.Path}, a.Path)
-	}), command("validate", "Validar configuración sin mostrar credenciales", func(_ *cobra.Command, _ []string) error {
+	}), command("validate", "Validate configuration without showing credentials", func(_ *cobra.Command, _ []string) error {
 		a, e := access()
 		if e != nil {
 			return e
@@ -298,19 +298,20 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		if e != nil {
 			return e
 		}
-		return emit(map[string]bool{"valid": true}, "Configuración válida.")
+		return emit(map[string]bool{"valid": true}, "Configuration valid.")
 	}))
 	root.AddCommand(auth, profiles, cfg)
 	addReading(root, deps, access, &profile, &email, emitRead)
 }
+
 func readToken(in io.Reader) (ports.Secret, error) {
 	b, err := io.ReadAll(io.LimitReader(bufio.NewReader(in), 65537))
 	if err != nil || len(b) > 65536 {
-		return ports.Secret{}, &domain.Error{Kind: domain.InvalidInput, Message: "No se pudo leer el token o supera 64 KiB."}
+		return ports.Secret{}, &domain.Error{Kind: domain.InvalidInput, Message: "Could not read token or it exceeds 64 KiB."}
 	}
 	value := strings.TrimSuffix(strings.TrimSuffix(string(b), "\n"), "\r")
 	if value == "" || strings.ContainsAny(value, "\r\n\x00") {
-		return ports.Secret{}, &domain.Error{Kind: domain.InvalidInput, Message: "El token debe contener una sola línea no vacía."}
+		return ports.Secret{}, &domain.Error{Kind: domain.InvalidInput, Message: "Token must be a single non-empty line."}
 	}
 	return ports.NewSecret(value), nil
 }

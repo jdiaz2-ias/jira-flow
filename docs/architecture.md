@@ -1,37 +1,37 @@
-# Arquitectura F2
+# F2 Architecture
 
-El dominio y los puertos dependen únicamente de Go estándar. CLI y futura TUI consumen casos de uso; los adaptadores implementan los puertos. La prueba de integración `TestCoreHasNoUIOrProviderDependencies` verifica esa separación con el grafo real de imports.
+Domain and ports depend only on the Go standard library. CLI and future TUI consume use cases; adapters implement ports. The integration test `TestCoreHasNoUIOrProviderDependencies` verifies this separation using the real import graph.
 
-Tipos de dominio presentes: issues, identidad, fechas locales, bloques normalizados, consulta/página, progreso, campos de transición, intención, acción preparada, resultado de aplicación y errores. F1 añade `config` para persistencia versionada, `app.Access` para casos de uso de acceso, `provider/jiracloud` para HTTP y `secretstore` para credenciales del sistema. CLI compone las dependencias y las pruebas pueden inyectarlas.
+Present domain types: issues, identity, local dates, normalized blocks, query/page, progress, transition fields, intent, prepared action, apply result, and errors. F1 adds `config` for versioned persistence, `app.Access` for access use cases, `provider/jiracloud` for HTTP, and `secretstore` for system credentials. CLI composes dependencies and tests can inject them.
 
-`Secret` redacta formato, JSON y slog; `Reveal` es una salida explícita para adaptadores de autenticación/almacenamiento. La redacción evita errores de registro habituales, no cifra memoria ni garantiza borrado de strings Go.
+`Secret` redacts format, JSON, and slog; `Reveal` is an explicit output for authentication/storage adapters. Redaction avoids common logging mistakes; it does not encrypt memory or guarantee string erasure in Go.
 
-## Dependencias fijadas
+## Pinned dependencies
 
-| Componente | Versión inicial | Uso |
+| Component | Initial version | Use |
 | --- | --- | --- |
-| Go | 1.27.1 | Compilador, gofmt y go vet |
+| Go | 1.27.1 | Compiler, gofmt, and go vet |
 | Cobra | 1.10.2 | CLI |
-| Bubble Tea | 2.0.9 | Compatibilidad F0; TUI en F5 |
-| Bubbles | 2.2.1 | Componentes de TUI |
-| Lip Gloss | 2.0.6 | Estilos de TUI |
-| go-keyring | 0.2.8 | Auditoría histórica foundation; backend activo con procesos propios |
-| x/term | 0.45.0 | Entrada oculta/detección de terminal en F1 |
-| govulncheck | 1.7.0 | Análisis ejecutado por `make security` |
-| GoReleaser | 2.18.1 | Versión reservada en Makefile; empaquetado en F6 |
+| Bubble Tea | 2.0.9 | F0 compatibility; TUI in F5 |
+| Bubbles | 2.2.1 | TUI components |
+| Lip Gloss | 2.0.6 | TUI styles |
+| go-keyring | 0.2.8 | Historical foundation audit; active backend uses own processes |
+| x/term | 0.45.0 | Hidden input/terminal detection in F1 |
+| govulncheck | 1.7.0 | Analysis run by `make security` |
+| GoReleaser | 2.18.1 | Reserved version in Makefile; packaging in F6 |
 
-`go.mod` y `go.sum` son la autoridad sobre el grafo realmente resuelto, incluidas dependencias transitivas. `foundation` mantiene presentes los imports de dependencias futuras al ejecutar `go mod tidy`, y permite compilarlas en la matriz sin incorporar funcionalidad prematura al binario. Es una excepción deliberada de F0: retirar esos imports cuando los adaptadores/TUI reales los utilicen.
+`go.mod` and `go.sum` are the authority on the actually resolved graph, including transitive dependencies. `foundation` keeps imports of future dependencies present when running `go mod tidy`, and allows compiling them in the matrix without incorporating premature functionality into the binary. It is a deliberate exception from F0: remove those imports when real adapters/TUI use them.
 
-CI fija checkout/setup-go por SHA, usa versiones explícitas de SO/toolchain y no publica. El lint inicial es `go vet`, fijado por Go; añadir otro linter solo cuando aporte reglas necesarias.
+CI pins checkout/setup-go by SHA, uses explicit OS/toolchain versions, and does not publish. The initial lint is `go vet`, pinned by Go; add another linter only when it provides needed rules.
 
-## Lectura F2
+## F2 reading
 
-`jiracloud.Session` implementa `ports.IssueReader` con un perfil y una credencial por invocación. `app.Reader` verifica la identidad, recorre páginas, firma cursores y mantiene una caché aislada. `output` convierte dominio a DTOs públicos y texto; no exporta directamente structs internos al contrato JSON. `browser` implementa el puerto de apertura con ejecutables y argumentos separados.
+`jiracloud.Session` implements `ports.IssueReader` with one profile and credential per invocation. `app.Reader` verifies identity, walks pages, signs cursors, and keeps an isolated cache. `output` converts domain to public DTOs and text; it does not export internal structs directly to the JSON contract. `browser` implements the opening port with separate executables and arguments.
 
-Los listados no cargan detalles por fila. Las secciones de comentarios/historial usan sus propios offsets. La caché vive solo en memoria; la persistencia se reserva para F4.
+Listings do not load details per row. Comments/history sections use their own offsets. Cache lives only in memory; persistence is reserved for F4.
 
-## Organización futura
+## Future organization
 
-Ampliar `provider/jiracloud` y `workflow` en F3; `cache` persistente en F4; `tui` en F5. No crear paquetes vacíos para fingir implementación. El formato público se mantendrá en `output` incluso cuando cambien los tipos internos.
+Extend `provider/jiracloud` and `workflow` in F3; persistent `cache` in F4; `tui` in F5. Do not create empty packages to pretend implementation. The public format will remain in `output` even when internal types change.
 
-Referencias consultadas el 2026-09-06: [Go](https://go.dev/dl/?mode=json), [Cobra](https://github.com/spf13/cobra/releases/tag/v1.10.2), [Charm](https://charm.land/blog/v2/), [keyring](https://github.com/zalando/go-keyring/tree/v0.2.8).
+References checked on 2026-09-06: [Go](https://go.dev/dl/?mode=json), [Cobra](https://github.com/spf13/cobra/releases/tag/v1.10.2), [Charm](https://charm.land/blog/v2/), [keyring](https://github.com/zalando/go-keyring/tree/v0.2.8).

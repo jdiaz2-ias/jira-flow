@@ -1,43 +1,43 @@
-# Autenticación y lectura F1–F2; catálogo F3–F4
+# Authentication and reading F1–F2; catalog F3–F4
 
-F1 implementa autenticación personal Cloud y `myself`; F2 añade búsqueda mejorada, detalle, comentarios e historial de solo lectura. Transiciones y escrituras continúan como especificación para fases posteriores. Contrato REST y tokens reconsultados el 2026-09-07; el usuario confirmó la conexión F1 con su tenant; las pruebas F2 usan datos sintéticos.
+F1 implements personal Cloud authentication and `myself`; F2 adds enhanced search, detail, comments, and read-only history. Transitions and writes remain as specification for later phases. REST contract and tokens rechecked on 2026-09-07; the user confirmed the F1 connection with their tenant; F2 tests use synthetic data.
 
-## Métodos personales Cloud
+## Personal Cloud methods
 
-| Método | Autorización | Base REST | URL navegable |
+| Method | Authorization | REST base | Browsable URL |
 | --- | --- | --- | --- |
-| API token sin scopes | Basic correo:token | `https://sitio.atlassian.net` | El sitio |
-| API token con scopes | Basic correo:token | `https://api.atlassian.com/ex/jira/{cloudId}` | El sitio |
+| API token without scopes | Basic email:token | `https://site.atlassian.net` | The site |
+| API token with scopes | Basic email:token | `https://api.atlassian.com/ex/jira/{cloudId}` | The site |
 
-Los tokens de service accounts y otros tipos de integración no se infieren de este contrato. Cloud ID debe ser real y proporcionado/descubierto explícitamente. No extraerlo del hostname ni enviar credenciales a un endpoint distinto para “probar”. Fuente: [tokens personales](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/).
+Service-account tokens and other integration types are not inferred from this contract. Cloud ID must be real and provided/discovered explicitly. Do not extract it from the hostname or send credentials to a different endpoint to “test”. Source: [personal tokens](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/).
 
-## Endpoints y permisos
+## Endpoints and permissions
 
-La columna scopes enumera los scopes **clásicos OAuth publicados en la referencia REST**, como catálogo técnico, no como promesa de que toda modalidad de token acepte una lista idéntica. En F1, documentar la selección que ofrezca la consola de tokens del tenant probado. Los permisos de proyecto y visibilidad siguen siendo necesarios.
+The scopes column lists the **classic OAuth scopes published in the REST reference**, as a technical catalog, not a promise that every token mode accepts an identical list. In F1, document the selection offered by the tested tenant's token console. Project permissions and visibility are still required.
 
-| Comando | Método/ruta | Scope clásico de referencia | Permisos/contexto |
+| Command | Method/path | Classic reference scope | Permissions/context |
 | --- | --- | --- | --- |
-| `auth login`, `me`, `doctor` | GET `/rest/api/3/myself` | `read:jira-user` | Acceso a Jira |
-| `mine`, `list`, `search`, `summary` | POST `/rest/api/3/search/jql` | `read:jira-work` | Browse Projects y seguridad de issue |
+| `auth login`, `me`, `doctor` | GET `/rest/api/3/myself` | `read:jira-user` | Jira access |
+| `mine`, `list`, `search`, `summary` | POST `/rest/api/3/search/jql` | `read:jira-work` | Browse Projects and issue security |
 | `show`, `progress` | GET `/rest/api/3/issue/{key}` | `read:jira-work` | Issue visible |
-| `transitions`, preparar acción | GET `/rest/api/3/issue/{key}/transitions` | `read:jira-work` | Transiciones disponibles para esa identidad |
-| `start`, `done`, `close`, `transition` | POST `/rest/api/3/issue/{key}/transitions` | `write:jira-work` | Browse Projects y Transition Issues |
-| `show --comments` | GET `/rest/api/3/issue/{key}/comment` | `read:jira-work` | Visibilidad de issue/comentario |
+| `transitions`, prepare action | GET `/rest/api/3/issue/{key}/transitions` | `read:jira-work` | Available transitions for that identity |
+| `start`, `done`, `close`, `transition` | POST `/rest/api/3/issue/{key}/transitions` | `write:jira-work` | Browse Projects and Transition Issues |
+| `show --comments` | GET `/rest/api/3/issue/{key}/comment` | `read:jira-work` | Issue/comment visibility |
 | `show --history` | GET `/rest/api/3/issue/{key}/changelog` | `read:jira-work` | Issue visible |
-| Descubrir campos | GET `/rest/api/3/field` | `read:jira-work` | Campos visibles en el contexto |
-| `link`, `open` | Ninguna llamada Jira | Ninguno | Configuración local |
+| Discover fields | GET `/rest/api/3/field` | `read:jira-work` | Fields visible in context |
+| `link`, `open` | No Jira call | None | Local configuration |
 
-Scopes granulares documentados para los primeros endpoints:
+Granular scopes documented for the first endpoints:
 
 - `myself`: `read:application-role:jira`, `read:group:jira`, `read:user:jira`, `read:avatar:jira`.
 - POST `search/jql`: `read:issue-details:jira`, `read:field.default-value:jira`, `read:field.option:jira`, `read:field:jira`, `read:group:jira`.
 - GET transitions: `read:issue.transition:jira`, `read:status:jira`, `read:field-configuration:jira`.
 - POST transitions: `write:issue:jira`, `write:issue.property:jira`.
 
-No solicitar permisos administrativos para un flujo personal de consulta/transiciones. No reutilizar la lista granular de GET search para POST search; los scopes publicados pueden diferir. Los comandos que preparan y aplican necesitan la unión de sus lecturas y escritura.
+Do not request administrative permissions for a personal query/transition flow. Do not reuse the granular GET search list for POST search; published scopes may differ. Commands that prepare and apply need the union of their reads and write.
 
-Fuentes: [myself](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/), [búsqueda](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), [issues/transiciones](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comentarios](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [campos](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-fields/). Revisión: 2026-09-07 para lecturas F2; revalidar al activar nuevas operaciones.
+Sources: [myself](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/), [search](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), [issues/transitions](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comments](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [fields](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-fields/). Reviewed: 2026-09-07 for F2 reads; revalidate when enabling new operations.
 
-## Credenciales y macOS
+## Credentials and macOS
 
-F1 implementa `SecretStore` con procesos cancelables: `/usr/bin/security -i` en macOS y `secret-tool` en Linux. Los secretos viajan por stdin, nunca por argv. Ver [ADR-004](adr/004-secrets.md). El llavero disponible permite persistencia; una sesión sin llavero utiliza token efímero por entorno/stdin con `--no-store`. No hay fallback de archivo de texto plano. La configuración contiene únicamente una referencia aleatoria; cada perfil queda asociado al sitio y account ID verificados.
+F1 implements `SecretStore` with cancelable processes: `/usr/bin/security -i` on macOS and `secret-tool` on Linux. Secrets travel via stdin, never via argv. See [ADR-004](adr/004-secrets.md). An available keyring enables persistence; a session without one uses an ephemeral token via environment/stdin with `--no-store`. There is no plain-text file fallback. The configuration contains only a random reference; each profile is associated with the verified site and account ID.

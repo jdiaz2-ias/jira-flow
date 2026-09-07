@@ -20,7 +20,7 @@ type fakeIdentity struct{}
 
 func (fakeIdentity) Myself(_ context.Context, p config.Profile, s ports.Secret) (domain.User, error) {
 	if s.Reveal() != "synthetic-token" {
-		return domain.User{}, &domain.Error{Kind: domain.Authentication, Message: "Credencial inválida."}
+		return domain.User{}, &domain.Error{Kind: domain.Authentication, Message: "Invalid credential."}
 	}
 	return domain.User{ID: "u-123", DisplayName: "Test User"}, nil
 }

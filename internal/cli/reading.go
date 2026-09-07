@@ -24,14 +24,14 @@ type readFlags struct {
 }
 
 func (f *readFlags) bind(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&f.refresh, "refresh", false, "Omitir caché y consultar Jira")
-	cmd.Flags().BoolVar(&f.offline, "offline", false, "Usar solo caché de este proceso (sin persistencia en F2)")
-	cmd.Flags().BoolVar(&f.tokenStdin, "token-stdin", false, "Leer credencial efímera desde stdin")
-	cmd.Flags().DurationVar(&f.timeout, "timeout", 30*time.Second, "Plazo total del comando")
+	cmd.Flags().BoolVar(&f.refresh, "refresh", false, "Skip cache and query Jira")
+	cmd.Flags().BoolVar(&f.offline, "offline", false, "Use only cache from this process (no persistence in F2)")
+	cmd.Flags().BoolVar(&f.tokenStdin, "token-stdin", false, "Read ephemeral credential from stdin")
+	cmd.Flags().DurationVar(&f.timeout, "timeout", 30*time.Second, "Total command timeout")
 }
 func (f readFlags) context(cmd *cobra.Command) (context.Context, context.CancelFunc, error) {
 	if f.timeout <= 0 || f.timeout > 10*time.Minute || (f.offline && f.refresh) {
-		return nil, nil, &domain.Error{Kind: domain.InvalidInput, Message: "--timeout debe ser mayor que cero y hasta 10m; --offline y --refresh son incompatibles."}
+		return nil, nil, &domain.Error{Kind: domain.InvalidInput, Message: "--timeout must be greater than zero and at most 10m; --offline and --refresh are incompatible."}
 	}
 	ctx, cancel := context.WithTimeout(cmd.Context(), f.timeout)
 	return ctx, cancel, nil
@@ -89,7 +89,7 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 		var pageToken string
 		var fields []string
 		q.Mode = mode
-		cmd := &cobra.Command{Use: mode, Short: map[string]string{"mine": "Consultar mis issues pendientes", "list": "Listar issues con un alcance explícito", "search": "Ejecutar una consulta JQL"}[mode], Args: cobra.NoArgs, Annotations: map[string]string{"collection": "true"}}
+		cmd := &cobra.Command{Use: mode, Short: map[string]string{"mine": "Query my pending issues", "list": "List issues with an explicit scope", "search": "Execute a JQL query"}[mode], Args: cobra.NoArgs, Annotations: map[string]string{"collection": "true"}}
 		cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel, err := f.context(cmd)
 			if err != nil {
@@ -97,10 +97,10 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 			}
 			defer cancel()
 			if limit < 1 || limit > 5000 || pageSize < 1 || pageSize > 100 || maxResults < 1 || maxResults > 5000 {
-				return &domain.Error{Kind: domain.InvalidInput, Message: "--limit y --max-results deben estar entre 1 y 5000; --page-size entre 1 y 100."}
+				return &domain.Error{Kind: domain.InvalidInput, Message: "--limit and --max-results must be between 1 and 5000; --page-size between 1 and 100."}
 			}
 			if all && cmd.Flags().Changed("limit") {
-				return &domain.Error{Kind: domain.InvalidInput, Message: "--all no se combina con --limit; usa --max-results como límite protector."}
+				return &domain.Error{Kind: domain.InvalidInput, Message: "--all does not combine with --limit; use --max-results as a guard limit."}
 			}
 			for _, field := range fields {
 				allowed := false
@@ -110,18 +110,18 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 					}
 				}
 				if !allowed {
-					return &domain.Error{Kind: domain.InvalidInput, Message: "Selección --fields no permitida; consulta la ayuda."}
+					return &domain.Error{Kind: domain.InvalidInput, Message: "--fields selection not allowed; see help."}
 				}
 			}
 			if len(fields) == 0 {
-				return &domain.Error{Kind: domain.InvalidInput, Message: "--fields requiere al menos un campo."}
+				return &domain.Error{Kind: domain.InvalidInput, Message: "--fields requires at least one field."}
 			}
 			sort.Strings(fields)
 			fields = compact(fields)
 			if mode == "search" {
 				for _, flag := range []string{"project", "status-category", "type", "priority", "include-done", "updated-since", "sort"} {
 					if cmd.Flags().Changed(flag) {
-						return &domain.Error{Kind: domain.InvalidInput, Message: "No combines search --jql con filtros estructurados."}
+						return &domain.Error{Kind: domain.InvalidInput, Message: "Do not combine search --jql with structured filters."}
 					}
 				}
 				if _, err = q.Build(); err != nil {
@@ -153,27 +153,27 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 		}
 		f.bind(cmd)
 		if mode == "search" {
-			cmd.Flags().StringVar(&q.JQL, "jql", "", "Consulta JQL explícita")
+			cmd.Flags().StringVar(&q.JQL, "jql", "", "Explicit JQL query")
 		}
 		if mode != "search" {
-			cmd.Flags().StringVar(&q.Project, "project", "", "Proyecto por clave o nombre")
-			cmd.Flags().StringVar(&q.Category, "status-category", "", "todo, in-progress o done")
-			cmd.Flags().StringVar(&q.Type, "type", "", "Tipo de issue")
-			cmd.Flags().StringVar(&q.Priority, "priority", "", "Prioridad")
-			cmd.Flags().BoolVar(&q.IncludeDone, "include-done", false, "Incluir completados en mine")
-			cmd.Flags().StringVar(&q.UpdatedSince, "updated-since", "", "Fecha YYYY-MM-DD o intervalo como -7d")
-			cmd.Flags().StringVar(&q.Sort, "sort", "", "Campos separados por coma; -updated es descendente")
+			cmd.Flags().StringVar(&q.Project, "project", "", "Project by key or name")
+			cmd.Flags().StringVar(&q.Category, "status-category", "", "todo, in-progress or done")
+			cmd.Flags().StringVar(&q.Type, "type", "", "Issue type")
+			cmd.Flags().StringVar(&q.Priority, "priority", "", "Priority")
+			cmd.Flags().BoolVar(&q.IncludeDone, "include-done", false, "Include completed in mine")
+			cmd.Flags().StringVar(&q.UpdatedSince, "updated-since", "", "Date YYYY-MM-DD or interval like -7d")
+			cmd.Flags().StringVar(&q.Sort, "sort", "", "Comma-separated fields; -updated is descending")
 		}
-		cmd.Flags().IntVar(&limit, "limit", 50, "Máximo de issues devueltos")
-		cmd.Flags().IntVar(&pageSize, "page-size", 50, "Tamaño de página (1-100)")
-		cmd.Flags().IntVar(&maxResults, "max-results", 5000, "Límite protector de --all (1-5000)")
-		cmd.Flags().BoolVar(&all, "all", false, "Recorrer todas las páginas hasta el límite protector")
-		cmd.Flags().StringVar(&pageToken, "page-token", "", "Cursor opaco de una consulta anterior")
-		cmd.Flags().StringSliceVar(&fields, "fields", append([]string(nil), jiracloud.ListFields...), "Campos de listado: "+strings.Join(jiracloud.ListFields, ","))
+		cmd.Flags().IntVar(&limit, "limit", 50, "Maximum issues returned")
+		cmd.Flags().IntVar(&pageSize, "page-size", 50, "Page size (1-100)")
+		cmd.Flags().IntVar(&maxResults, "max-results", 5000, "Guard limit for --all (1-5000)")
+		cmd.Flags().BoolVar(&all, "all", false, "Traverse all pages up to the guard limit")
+		cmd.Flags().StringVar(&pageToken, "page-token", "", "Opaque cursor from a previous query")
+		cmd.Flags().StringSliceVar(&fields, "fields", append([]string(nil), jiracloud.ListFields...), "List fields: "+strings.Join(jiracloud.ListFields, ","))
 		if mode != "search" {
 			cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
 				if cmd.Flags().Changed("jql") {
-					return &domain.Error{Kind: domain.InvalidInput, Message: "--jql solo está disponible con search."}
+					return &domain.Error{Kind: domain.InvalidInput, Message: "--jql is only available with search."}
 				}
 				return nil
 			}
@@ -185,7 +185,7 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 	opts.IncludeDescription = true
 	opts.IncludeSubtasks = true
 	opts.IncludeLinks = true
-	show := &cobra.Command{Use: "show CLAVE", Short: "Consultar un issue y sus secciones opcionales", Args: cobra.ExactArgs(1)}
+	show := &cobra.Command{Use: "show KEY", Short: "Query an issue and its optional sections", Args: cobra.ExactArgs(1)}
 	show.RunE = func(cmd *cobra.Command, args []string) error {
 		key, err := domain.IssueKey(args[0])
 		if err != nil {
@@ -197,10 +197,10 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 		}
 		defer cancel()
 		if opts.SectionLimit < 1 || opts.SectionLimit > 5000 || opts.PageSize < 1 || opts.PageSize > 100 || opts.CommentsStart < 0 || opts.HistoryStart < 0 {
-			return &domain.Error{Kind: domain.InvalidInput, Message: "Límites u offsets de sección inválidos."}
+			return &domain.Error{Kind: domain.InvalidInput, Message: "Invalid section limits or offsets."}
 		}
 		if (cmd.Flags().Changed("comments-start") && !opts.IncludeComments) || (cmd.Flags().Changed("history-start") && !opts.IncludeHistory) {
-			return &domain.Error{Kind: domain.InvalidInput, Message: "Los offsets requieren --comments o --history, respectivamente."}
+			return &domain.Error{Kind: domain.InvalidInput, Message: "Offsets require --comments or --history, respectively."}
 		}
 		o := opts
 		if o.All && !cmd.Flags().Changed("section-limit") {
@@ -218,16 +218,16 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 		return emit(output.DetailEnvelope(result, opErr), output.DetailText(result), opErr)
 	}
 	f.bind(show)
-	show.Flags().BoolVar(&opts.IncludeComments, "comments", false, "Cargar comentarios paginados")
-	show.Flags().BoolVar(&opts.IncludeHistory, "history", false, "Cargar historial paginado")
-	show.Flags().BoolVar(&opts.All, "all", false, "Recorrer todas las páginas de secciones solicitadas")
-	show.Flags().IntVar(&opts.SectionLimit, "section-limit", 50, "Máximo por sección; protector de --all")
-	show.Flags().IntVar(&opts.PageSize, "page-size", 50, "Tamaño de página de secciones (1-100)")
-	show.Flags().IntVar(&opts.CommentsStart, "comments-start", 0, "Offset de comentarios")
-	show.Flags().IntVar(&opts.HistoryStart, "history-start", 0, "Offset de historial")
+	show.Flags().BoolVar(&opts.IncludeComments, "comments", false, "Load paginated comments")
+	show.Flags().BoolVar(&opts.IncludeHistory, "history", false, "Load paginated history")
+	show.Flags().BoolVar(&opts.All, "all", false, "Traverse all pages of requested sections")
+	show.Flags().IntVar(&opts.SectionLimit, "section-limit", 50, "Maximum per section; guard for --all")
+	show.Flags().IntVar(&opts.PageSize, "page-size", 50, "Section page size (1-100)")
+	show.Flags().IntVar(&opts.CommentsStart, "comments-start", 0, "Comment offset")
+	show.Flags().IntVar(&opts.HistoryStart, "history-start", 0, "History offset")
 	root.AddCommand(show)
 	for _, mode := range []string{"link", "open"} {
-		cmd := &cobra.Command{Use: mode + " CLAVE", Short: map[string]string{"link": "Mostrar URL del issue sin consultar Jira", "open": "Abrir URL en el navegador predeterminado"}[mode], Args: cobra.ExactArgs(1)}
+		cmd := &cobra.Command{Use: mode + " KEY", Short: map[string]string{"link": "Show issue URL without querying Jira", "open": "Open URL in the default browser"}[mode], Args: cobra.ExactArgs(1)}
 		cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			if _, err := domain.IssueKey(args[0]); err != nil {
 				return err
@@ -251,7 +251,7 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 				opErr = launcher.Open(cmd.Context(), link)
 				data["launcher_started"] = opErr == nil
 				if opErr == nil {
-					plain = fmt.Sprintf("Lanzador iniciado: %s", link)
+					plain = fmt.Sprintf("Launcher started: %s", link)
 				}
 			}
 			envelope := output.Success(data)
@@ -267,10 +267,10 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 	// A typed, allowlisted setter makes the F2 default project usable without editing JSON.
 	cfg, _, _ := root.Find([]string{"config"})
 	if cfg != root {
-		set := &cobra.Command{Use: "set CLAVE VALOR", Short: "Configurar default_project para el perfil seleccionado", Args: cobra.ExactArgs(2)}
+		set := &cobra.Command{Use: "set KEY VALUE", Short: "Configure default_project for the selected profile", Args: cobra.ExactArgs(2)}
 		set.RunE = func(cmd *cobra.Command, args []string) error {
 			if args[0] != "default_project" || strings.TrimSpace(args[1]) == "" {
-				return &domain.Error{Kind: domain.InvalidInput, Message: "F2 admite config set default_project PROYECTO."}
+				return &domain.Error{Kind: domain.InvalidInput, Message: "F2 supports config set default_project PROJECT."}
 			}
 			if _, err := (domain.QueryOptions{Mode: "list", Project: args[1]}).Build(); err != nil {
 				return err
@@ -294,7 +294,7 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 			if err != nil {
 				return err
 			}
-			return emit(output.Success(map[string]string{"profile": name, "default_project": args[1]}), "Proyecto predeterminado: "+args[1], nil)
+			return emit(output.Success(map[string]string{"profile": name, "default_project": args[1]}), "Default project: "+args[1], nil)
 		}
 		cfg.AddCommand(set)
 	}

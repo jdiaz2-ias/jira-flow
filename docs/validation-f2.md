@@ -1,39 +1,39 @@
-# Validación F2
+# Validation F2
 
-Fecha: 2026-09-07. Entorno local: macOS arm64, Go 1.27.1.
+Date: 2026-09-07. Local environment: macOS arm64, Go 1.27.1.
 
-## Alcance implementado
+## Implemented scope
 
-- `mine`, `list`, `search`, `show`, `link`, `open` y `config set default_project`.
-- Constructor JQL con literales escapados, categorías y orden permitido; POST `/rest/api/3/search/jql` con campos seleccionados.
-- Páginas de búsqueda, deduplicación, cursores ligados al perfil/identidad/JQL/campos, conservación de filas sobrantes y resultados parciales.
-- Descripción ADF normalizada, subtareas y vínculos; comentarios/historial paginados bajo demanda.
-- Caché limitada en memoria; refresco, diagnóstico offline explícito, plazo total, texto/tabla/JSON sin controles de terminal.
-- Adaptadores de navegador macOS/Linux con argumentos separados y URL disponible si el lanzador falla.
+- `mine`, `list`, `search`, `show`, `link`, `open`, and `config set default_project`.
+- JQL constructor with escaped literals, categories, and allowed ordering; POST `/rest/api/3/search/jql` with selected fields.
+- Search pages, deduplication, cursors tied to profile/identity/JQL, retention of leftover rows, and partial results.
+- Normalized ADF description, subtasks, and links; paginated comments/history on demand.
+- Bounded in-memory cache; refresh, explicit offline diagnosis, total deadline, text/table/JSON without terminal controls.
+- macOS/Linux browser adapters with separate arguments and URL preserved if the launcher fails.
 
-## Evidencia local
+## Local evidence
 
-Las pruebas usan exclusivamente datos sintéticos. El usuario confirmó previamente que F1 conecta con su Jira real; F2 no ha consultado sus issues ni modificado esa configuración durante el desarrollo.
+Tests use only synthetic data. The user previously confirmed that F1 connects to their real Jira; F2 did not query their issues or modify that configuration during development.
 
-- `make check`: pasa; formato, vet, pruebas de aplicación/CLI/HTTP y auditoría foundation.
-- `make test-race`: pasa; pruebas con detector de carreras.
-- `make build-all`: pasa; CLI y foundation para Linux/macOS × amd64/arm64.
-- `make build`: pasa; binario local `bin/jflow`.
-- `go mod verify`: todos los módulos verificados; `go mod tidy` no altera go.mod/go.sum.
-- `make security`: govulncheck 1.7.0 no encontró vulnerabilidades.
-- CI remoto se consulta en el PR; los resultados anteriores corresponden al equipo local.
+- `make check`: passes; format, vet, application/CLI/HTTP tests, and foundation audit.
+- `make test-race`: passes; race-detector tests.
+- `make build-all`: passes; CLI and foundation for Linux/macOS × amd64/arm64.
+- `make build`: passes; local binary `bin/jflow`.
+- `go mod verify`: all modules verified; `go mod tidy` does not alter go.mod/go.sum.
+- `make security`: govulncheck 1.7.0 found no vulnerabilities.
+- Remote CI is checked in the PR; previous results correspond to the local machine.
 
-Casos comprobados: ambos métodos de token; selección de campos sin solicitudes por fila; estados/campos ausentes; 400/401/403/404 y respuestas inválidas; reintentos 429 con Retry-After; redirecciones rechazadas; cancelación; resultados vacíos, límites, cursores repetidos, duplicados y reanudación con remanentes; firma y aislamiento de cursores; TTL/refresco/fallos de autenticación sin fallback; ADF desconocido y ANSI/OSC; secciones parciales; navegador simulado; binario real sin TTY y un único documento JSON incluso con error.
+Checked cases: both token methods; field selection without per-row requests; missing states/fields; 400/401/403/404 and invalid responses; 429 retries with Retry-After; rejected redirects; cancellation; empty results, limits, repeated cursors, duplicates, and resumption with remainders; cursor signing and isolation; TTL/refresh/auth failures without fallback; unknown ADF and ANSI/OSC; partial sections; simulated browser; real binary without TTY and a single JSON document even with error.
 
-## Límites observados
+## Observed limits
 
-- Integración F2 con Jira real pendiente de prueba del usuario. Las pruebas de HTTP son HTTPS locales; no equivalen a verificar permisos de proyectos o scopes del tenant.
-- No se ha lanzado un navegador real en las pruebas: se verifica el ejecutor inyectado, sin abrir ventanas.
-- Caché únicamente por proceso: 128 entradas, hasta 16 MiB en total y 4 MiB por entrada; TTL listado 60 s y detalle 30 s. Cada invocación normal de CLI comienza vacía. `--offline` no recupera datos de comandos anteriores; persistencia corresponde a F4.
-- Búsquedas: 50 resultados/página por defecto; tamaño máximo de página 100, límite protector máximo 5000 IDs por cadena de cursores y 1000 solicitudes por invocación. Los resultados no son snapshots transaccionales de Jira.
-- Los cursores están firmados, no cifrados. Pueden contener filas sobrantes de la página (datos de Jira), pero no incluyen el token de autenticación ni el JQL. Son inválidos al cambiar perfil, identidad, credencial, consulta o campos. No se guardan en archivos por la aplicación.
-- `show --comments/--history` carga hasta 50 elementos por sección por defecto. `--all` aumenta el límite a 5000, ajustable con `--section-limit`; los offsets se informan por sección. No se asume que una lista de subtareas visibles permita contar subtareas ocultas.
-- ADF se normaliza a bloques/texto: no reproduce todos los estilos visuales. Nodos desconocidos conservan descendientes o muestran una marca; imágenes y adjuntos no se descargan. Límite de profundidad 64 y 10000 nodos, con advertencia.
-- `open` confirma el éxito del lanzador, no la carga o autenticación del navegador.
+- F2 integration with real Jira pending user testing. HTTP tests are local HTTPS; they do not verify project permissions or tenant scopes.
+- No real browser was launched in tests: the injected executor is verified, without opening windows.
+- Cache is per-process only: 128 entries, up to 16 MiB total and 4 MiB per entry; listing TTL 60 s and detail TTL 30 s. Each normal CLI invocation starts empty. `--offline` does not recover data from previous commands; persistence corresponds to F4.
+- Searches: 50 results/page by default; maximum page size 100, safety maximum of 5000 IDs per cursor chain and 1000 requests per invocation. Results are not transactional snapshots of Jira.
+- Cursors are signed, not encrypted. They may contain leftover rows from the page (Jira data), but do not include the authentication token or JQL. They become invalid when profile, identity, credential, query, or fields change. They are not saved to files by the application.
+- `show --comments/--history` loads up to 50 items per section by default. `--all` raises the limit to 5000, adjustable via `--section-limit`; offsets are reported per section. A list of visible subtasks is not assumed to allow counting hidden subtasks.
+- ADF is normalized to blocks/text: it does not reproduce all visual styles. Unknown nodes keep descendants or show a marker; images and attachments are not downloaded. Depth limit 64 and 10000 nodes, with warning.
+- `open` confirms launcher success, not browser load or authentication.
 
-Referencias oficiales reconsultadas: [búsqueda mejorada](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), [issues e historial](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comentarios](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [ADF](https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/), [límites y reintentos](https://developer.atlassian.com/cloud/jira/platform/rate-limiting/).
+Official references rechecked: [enhanced search](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), [issues and history](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comments](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [ADF](https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/), [limits and retries](https://developer.atlassian.com/cloud/jira/platform/rate-limiting/).

@@ -1,1 +1,1 @@
-{"transitions":[{"id":"31","name":"Resolver","to":{"id":"5","name":"Resuelto","statusCategory":{"key":"done","name":"Done"}},"fields":{}},{"id":"41","name":"Cancelar","to":{"id":"6","name":"Cancelado","statusCategory":{"key":"done","name":"Done"}},"fields":{}}]}
+{"transitions":[{"id":"31","name":"Resolve","to":{"id":"5","name":"Resolved","statusCategory":{"key":"done","name":"Done"}},"fields":{}},{"id":"41","name":"Cancel","to":{"id":"6","name":"Cancelled","statusCategory":{"key":"done","name":"Done"}},"fields":{}}]}

@@ -1,6 +1,6 @@
-# JSON público v1
+# Public JSON v1
 
-La envoltura se implementa en `internal/output`; no se serializan directamente structs de dominio. Stdout contiene un único JSON y salto de línea. En errores de uso con JSON, stderr permanece vacío. Un fallo del propio stdout produce diagnóstico por stderr y código 1.
+The wrapper is implemented in `internal/output`; domain structs are not serialized directly. Stdout contains a single JSON plus newline. On usage errors with JSON, stderr stays empty. An stdout failure itself emits a diagnostic to stderr and code 1.
 
 ```json
 {
@@ -19,24 +19,24 @@ La envoltura se implementa en `internal/output`; no se serializan directamente s
 }
 ```
 
-En un error, `ok=false`, `data=null`, y `error` contiene `code`, `message`, `retryable` y `details`. `Cause` interno nunca se exporta. Errores sin clasificar se presentan como `internal_error`, sin copiar su contenido privado. Ayuda JSON utiliza `data.help`.
+On error, `ok=false`, `data=null`, and `error` contains `code`, `message`, `retryable`, and `details`. Internal `Cause` is never exported. Unclassified errors are presented as `internal_error`, without copying private content. JSON help uses `data.help`.
 
-## Códigos reservados
+## Reserved codes
 
-| Exit | Código de dominio | Uso |
+| Exit | Domain code | Use |
 | --- | --- | --- |
-| 0 | — | Éxito |
-| 1 | `internal_error` | Error interno/salida |
-| 2 | `invalid_input` | Uso/configuración |
-| 3 | `authentication_required` | Identidad/credenciales |
-| 4 | `forbidden` | Acceso rechazado |
-| 5 | `not_found` | Ausente o no visible |
-| 6 | `validation_failed` | Campos/ambigüedad |
-| 7 | `conflict` | Cambio concurrente |
-| 8 | `service_unavailable` | Red/429/lectura |
-| 9 | `write_uncertain` | Escritura incierta o aceptada sin verificar |
-| 10 | `partial_result` | Consulta completa/lote incompleto |
-| 11 | `capability_unavailable` | Función no disponible en un contexto |
-| 130 | `canceled` | Cancelación |
+| 0 | — | Success |
+| 1 | `internal_error` | Internal/output error |
+| 2 | `invalid_input` | Usage/configuration |
+| 3 | `authentication_required` | Identity/credentials |
+| 4 | `forbidden` | Access denied |
+| 5 | `not_found` | Missing or not visible |
+| 6 | `validation_failed` | Fields/ambiguity |
+| 7 | `conflict` | Concurrent change |
+| 8 | `service_unavailable` | Network/429/read |
+| 9 | `write_uncertain` | Uncertain write or accepted unverified |
+| 10 | `partial_result` | Complete query/batch incomplete |
+| 11 | `capability_unavailable` | Function unavailable in context |
+| 130 | `canceled` | Cancellation |
 
-Los códigos 3–11 están reservados en contratos y se activarán con los casos de uso correspondientes. Las claves detalladas como `transition_ambiguous` se añadirán como refinamientos en F3 sin cambiar el significado de exit 6. No modificar el tipo de un campo de v1: los cambios incompatibles requieren nueva versión.
+Codes 3–11 are reserved in contracts and will be activated with the corresponding use cases. Detailed keys such as `transition_ambiguous` will be added as refinements in F3 without changing the meaning of exit 6. Do not change a v1 field type: incompatible changes require a new version.

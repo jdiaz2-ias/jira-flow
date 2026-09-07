@@ -30,7 +30,7 @@ func TestIssueJSONContractAndUnknownFields(t *testing.T) {
 func TestDetailRenderingIncludesLinksAndSections(t *testing.T) {
 	d := domain.IssueDetail{Issue: domain.Issue{Ref: domain.IssueRef{ID: "1", Key: "APP-1"}, Summary: "safe\x1b]52;c;payload\x07 text"}, Description: []domain.Block{{Kind: "paragraph", Children: []domain.Block{{Kind: "text", Text: "link", URL: "https://example.com"}}}}, Comments: &domain.CommentPage{Items: []domain.Comment{{ID: "c", Body: []domain.Block{{Kind: "text", Text: "body"}}}}}, History: &domain.HistoryPage{Items: []domain.HistoryEntry{{ID: "h", Changes: []domain.Change{{Field: "status", From: "Todo", To: "Done"}}}}}}
 	text := DetailText(app.DetailResult{Detail: d})
-	for _, want := range []string{"safe text", "https://example.com", "Comentarios:", "body", "Historial:", "Todo -> Done", "incompletos"} {
+	for _, want := range []string{"safe text", "https://example.com", "Comments:", "body", "History:", "Todo -> Done", "Incomplete"} {
 		if !strings.Contains(text, want) {
 			t.Fatal(want, text)
 		}

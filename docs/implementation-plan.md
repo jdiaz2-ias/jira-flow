@@ -1,288 +1,288 @@
-# Plan de implementación: Jira Flow CLI
+# Implementation plan: Jira Flow CLI
 
-Fecha: 6 de septiembre de 2026. Versión del plan: 1.0. Idioma: español.
+Date: September 6, 2026. Plan version: 1.0. Language: Spanish.
 
-Nombre de trabajo: **Jira Flow**. Ejecutable propuesto: **`jflow`**. El nombre es provisional; comprobar disponibilidad antes de publicar. Este documento especifica un producto por implementar: los comandos, pantallas y configuraciones son contratos propuestos, no funciones ya existentes.
+Work name: **Jira Flow**. Proposed executable: **`jflow`.** The name is provisional; check availability before publishing. This document specifies a product to implement: the commands, screens, and configurations are proposed contracts, not already existing features.
 
-## 1. Objetivo y decisiones principales
+## 1. Objective and main decisions
 
-Construir una herramienta de consola para Linux y macOS que permita consultar los issues de Jira asignados al usuario autenticado, revisar su estado y avance, iniciar trabajo, completar o cerrar issues, consultar sus enlaces y abrirlos en el navegador. Debe servir tanto para trabajo interactivo diario como para scripts y permitir añadir funciones sin reescribir la interfaz o el cliente de Jira.
+Build a console tool for Linux and macOS that lets the authenticated user query their assigned Jira issues, review their status and progress, start work, complete or close issues, check their links, and open them in a browser. It must serve both daily interactive work and scripts, and allow adding features without rewriting the interface or Jira client.
 
-La implementación tendrá dos entradas que compartirán los mismos casos de uso: una CLI con subcomandos y una TUI, es decir, una interfaz interactiva dentro de la terminal. No requiere servidor propio ni un proceso permanente para la primera versión.
+The implementation will have two entry points sharing the same use cases: a CLI with subcommands and a TUI, that is, an interactive interface inside the terminal. It does not require its own server or a permanent process for the first version.
 
-Decisiones de diseño del proyecto:
+Project design decisions:
 
-| Aspecto | Decisión |
+| Aspect | Decision |
 | --- | --- |
-| Lenguaje | Go; toolchain inicial 1.27.1, sujeto a actualizar parches antes de implementar |
-| CLI | Cobra para comandos, ayuda y completado |
-| TUI | Bubble Tea v2, Bubbles v2 y Lip Gloss v2 |
-| Integración inicial | Jira Cloud, REST API v3, cliente HTTP propio y pequeño |
-| Autenticación inicial | Correo y API token, con soporte explícito de tokens con scopes y sin scopes |
-| Configuración | JSON versionado, perfiles y comandos de configuración |
-| Credenciales | Keychain de macOS o Secret Service de Linux; variables de entorno para sesiones sin keyring |
-| Persistencia | Archivos JSON atómicos para configuración, preferencias y caché opcional |
-| Distribución | Binarios para Linux/macOS, amd64/arm64; GoReleaser y posteriormente Homebrew |
-| Extensibilidad | Interfaces pequeñas, registro interno de acciones y adaptadores de proveedor |
-| Idioma de producto | Mensajes inicialmente en español; comandos y claves JSON en inglés |
+| Language | Go; initial toolchain 1.27.1, subject to updating patches before implementing |
+| CLI | Cobra for commands, help, and completion |
+| TUI | Bubble Tea v2, Bubbles v2, and Lip Gloss v2 |
+| Initial integration | Jira Cloud, REST API v3, own small HTTP client |
+| Initial authentication | Email and API token, with explicit support for scoped and unscoped tokens |
+| Configuration | Versioned JSON, profiles, and configuration commands |
+| Credentials | macOS Keychain or Linux Secret Service; environment variables for sessions without keyring |
+| Persistence | Atomic JSON files for configuration, preferences, and optional cache |
+| Distribution | Binaries for Linux/macOS, amd64/arm64; GoReleaser and later Homebrew |
+| Extensibility | Small interfaces, internal action registry, and provider adapters |
+| Product language | Messages initially in Spanish; commands and JSON keys in English |
 
-Go facilita entregar un ejecutable sin instalar un runtime de Python o Node. Cobra aporta estructura y completado. Las bibliotecas de Charm aportan componentes y estilos de terminal. Esta es una elección de ingeniería para este proyecto, no el resultado de un benchmark comparativo. Las versiones v2 de Charm ya están publicadas y sus rutas son `charm.land/bubbletea/v2`, `charm.land/bubbles/v2` y `charm.land/lipgloss/v2`. Fuentes: [Go](https://go.dev/doc/devel/release), [Cobra](https://github.com/spf13/cobra/blob/main/site/content/user_guide.md), [Charm v2](https://charm.land/blog/v2/).
+Go makes it easy to deliver an executable without installing a Python or Node runtime. Cobra provides structure and completion. The Charm libraries provide terminal components and styles. This is an engineering choice for this project, not the result of a comparative benchmark. The v2 versions of Charm are already published and their paths are `charm.land/bubbletea/v2`, `charm.land/bubbles/v2`, and `charm.land/lipgloss/v2`. Sources: [Go](https://go.dev/doc/devel/release), [Cobra](https://github.com/spf13/cobra/blob/main/site/content/user_guide.md), [Charm v2](https://charm.land/blog/v2/).
 
-## 2. Alcance, supuestos y entregas
+## 2. Scope, assumptions, and deliverables
 
-Se asume un uso personal o interno de equipo con una cuenta Jira existente. No se dispone aún de dominio, proyecto, workflows, permisos ni credenciales reales; la primera fase implementará fixtures y la validación real se realizará en un proyecto de pruebas.
+It assumes personal or internal team use with an existing Jira account. There is no domain, project, workflow, permissions, or real credentials yet; the first phase will implement fixtures and real validation will be done in a test project.
 
-La compatibilidad Linux/macOS aplica desde la primera entrega. La compatibilidad con Jira Data Center es una ampliación independiente: no se debe anunciar soporte Data Center hasta implementar y probar su adaptador. No debe confundirse el sistema operativo de la CLI con el tipo de despliegue Jira.
+Linux/macOS compatibility applies from the first delivery. Jira Data Center compatibility is a separate extension: Data Center support must not be announced until its adapter is implemented and tested. Do not confuse the CLI operating system with the Jira deployment type.
 
-### Entrega A: núcleo usable, requisito obligatorio
+### Delivery A: usable core, mandatory requirement
 
-- Autenticación, perfiles, identidad actual y diagnóstico.
-- Listar asignados a mí, búsqueda JQL y filtros habituales.
-- Consultar detalle, estado, fechas, subtareas, vínculos y comentarios paginados.
-- Mostrar progreso verificable con alcance y frescura de los datos.
-- Imprimir URL y abrir el issue en el navegador.
-- Descubrir transiciones e iniciar, completar y cerrar según el workflow.
-- Solicitar campos de transición, confirmar y verificar resultados.
-- TUI con listado y detalle, teclado, tema claro/oscuro y modo accesible.
-- Salida de texto y JSON estable, códigos de salida y completado de shell.
-- Binarios y pruebas para ambos sistemas operativos.
+- Authentication, profiles, current identity, and diagnostics.
+- List assigned to me, JQL search, and common filters.
+- Query detail, status, dates, subtasks, links, and paginated comments.
+- Show verifiable progress with scope and data freshness.
+- Print URL and open the issue in the browser.
+- Discover transitions and start, complete, and close according to the workflow.
+- Request transition fields, confirm, and verify results.
+- TUI with listing and detail, keyboard, light/dark theme, and accessible mode.
+- Stable text and JSON output, exit codes, and shell completion.
+- Binaries and tests for both operating systems.
 
-### Entrega B: productividad
+### Delivery B: productivity
 
-- Crear comentarios, asignar a mí, editar campos comunes y reabrir mediante transiciones.
-- Vistas guardadas, favoritos locales, historial de actividad y resumen diario.
-- Tablero personal por categorías de estado y consulta de sprints cuando exista Jira Software.
-- Registro manual de tiempo, condicionado a configuración y permisos.
-- Extracción explícita de una clave Jira desde la rama Git actual.
+- Create comments, assign to me, edit common fields, and reopen via transitions.
+- Saved views, local favorites, activity history, and daily summary.
+- Personal board by status category and sprint queries when Jira Software exists.
+- Manual time logging, conditioned on configuration and permissions.
+- Explicit extraction of a Jira key from the current Git branch.
 
-### Entrega C: ampliaciones
+### Delivery C: extensions
 
-- Crear issues a partir de metadatos de creación y plantillas locales.
-- Adjuntos, enlaces entre issues, epics y métricas de sprint.
-- Operaciones por lotes con revisión individual y reporte parcial.
-- Adaptador Jira Data Center y protocolo de extensiones externas.
-- Evaluar OAuth para una distribución organizacional; cronómetro local con publicación explícita.
+- Create issues from creation metadata and local templates.
+- Attachments, issue links, epics, and sprint metrics.
+- Batch operations with individual review and partial reporting.
+- Jira Data Center adapter and external extension protocol.
+- Evaluate OAuth for organizational distribution; local stopwatch with explicit publishing.
 
-Quedan fuera de la primera versión: administrar workflows o permisos, eliminar issues, automatizaciones que muten Jira en segundo plano, sincronización bidireccional offline, envío a chat/correo y gestión de solicitudes/aprobaciones de Jira Service Management.
+Out of the first version: managing workflows or permissions, deleting issues, automations that mutate Jira in the background, bidirectional offline sync, sending to chat/email, and handling Jira Service Management requests/approvals.
 
-## 3. Experiencia diaria esperada
+## 3. Expected daily experience
 
-Ejemplo ilustrativo del recorrido completo:
+Illustrative example of the full journey:
 
 ```bash
-# Configuración inicial; el asistente solicita el token sin mostrarlo.
-jflow auth login --profile trabajo --site https://empresa.atlassian.net
+# Initial setup; the wizard prompts for the token without showing it.
+jflow auth login --profile work --site https://company.atlassian.net
 jflow auth status
 jflow me
 
-# Revisar lo que tengo pendiente.
+# Review what I have pending.
 jflow mine
 jflow mine --status-category in-progress
 jflow show APP-123
 jflow progress APP-123
 
-# Comenzar; antes de enviar se muestra la transición concreta.
+# Start; the concrete transition is shown before sending.
 jflow start APP-123
 
-# Consultar o compartir la URL.
+# Check or share the URL.
 jflow link APP-123
 jflow open APP-123
 
-# Finalizar; completar campos exigidos por el workflow.
+# Finish; complete fields required by the workflow.
 jflow done APP-123
 jflow show APP-123 --refresh
 
-# Interfaz interactiva.
+# Interactive interface.
 jflow ui
 ```
 
-`jflow` sin argumentos inicia la TUI si stdin y stdout son terminales y el entorno soporta interacción. Si no hay perfil, muestra el asistente de configuración. En una tubería imprime ayuda breve y termina con código 2; nunca debe entrar accidentalmente a pantalla completa.
+`jflow` with no arguments starts the TUI if stdin and stdout are terminals and the environment supports interaction. If there is no profile, it shows the setup wizard. In a pipe it prints a short help and exits with code 2; it must never accidentally enter full-screen mode.
 
-`jflow mine` siempre produce un listado de una sola ejecución. La elección explícita de `ui` mantiene predecibles los scripts. Los comandos de lectura no cambian asignaciones ni estados.
+`jflow mine` always produces a single-run listing. The explicit choice of `ui` keeps scripts predictable. Read commands do not change assignments or states.
 
-## 4. Contrato de comandos y opciones
+## 4. Command and option contract
 
-### 4.1 Comandos del núcleo
+### 4.1 Core commands
 
-| Comando | Comportamiento |
+| Command | Behavior |
 | --- | --- |
-| `jflow auth login` | Crear o actualizar credenciales del perfil y comprobar identidad |
-| `jflow auth status` | Mostrar perfil, sitio, método y origen de credencial, nunca el secreto; `--verify` comprueba red |
-| `jflow auth logout` | Retirar credencial local y caché de identidad del perfil; no revoca el token en Atlassian |
-| `jflow me` | Obtener identidad autenticada |
-| `jflow profile list` | Listar perfiles y marcar el activo |
-| `jflow profile use NOMBRE` | Cambiar perfil activo localmente |
-| `jflow config path` | Mostrar ruta de configuración |
-| `jflow config validate` | Validar esquema y coherencia sin imprimir secretos |
-| `jflow config set CLAVE VALOR` | Modificar una clave permitida con conversión según su tipo |
-| `jflow mine` | Listar asignados al usuario actual, excluyendo categoría Done por defecto |
-| `jflow list` | Consulta del proyecto predeterminado; exigir filtro explícito si no hay proyecto |
-| `jflow search --jql CONSULTA` | Ejecutar JQL suministrado por el usuario |
-| `jflow show CLAVE` | Detalle; `--comments`, `--history` habilitan secciones paginadas |
-| `jflow progress CLAVE` | Estado, resolución, subtareas y datos de tiempo disponibles |
-| `jflow summary` | Conteos por categoría sobre un alcance explícito o la vista personal |
-| `jflow link CLAVE` | Escribir la URL navegable y salto de línea; no requiere consultar Jira |
-| `jflow open CLAVE` | Abrir URL en navegador predeterminado y reportar si pudo lanzar el proceso |
-| `jflow transitions CLAVE` | Listar IDs, nombres, destinos y campos de transiciones disponibles |
-| `jflow transition CLAVE --id ID` | Ejecutar una transición explícita |
-| `jflow start CLAVE` | Resolver intención de iniciar mediante reglas del apartado 9 |
-| `jflow done CLAVE` | Resolver intención de completar mediante reglas del apartado 9 |
-| `jflow close CLAVE` | Resolver intención de cerrar mediante regla configurada; no es alias ciego de done |
-| `jflow workflow map` | Asistente para guardar una correspondencia validada por proyecto y tipo de issue |
-| `jflow ui` | TUI; admite `--view` para una vista guardada cuando esté disponible |
-| `jflow doctor` | Diagnóstico de configuración, autenticación, conectividad, terminal y keyring |
-| `jflow completion bash\|zsh\|fish` | Generar completado sin instalarlo automáticamente |
-| `jflow version` | Versión, commit y plataforma; formato JSON opcional |
+| `jflow auth login` | Create or update profile credentials and check identity |
+| `jflow auth status` | Show profile, site, method, and credential source, never the secret; `--verify` checks network |
+| `jflow auth logout` | Remove local credential and profile identity cache; does not revoke the token in Atlassian |
+| `jflow me` | Get authenticated identity |
+| `jflow profile list` | List profiles and mark the active one |
+| `jflow profile use NAME` | Change active profile locally |
+| `jflow config path` | Show configuration path |
+| `jflow config validate` | Validate schema and consistency without printing secrets |
+| `jflow config set KEY VALUE` | Modify an allowed key with safe type conversion |
+| `jflow mine` | List current user assignments, excluding Done category by default |
+| `jflow list` | Query the default project; require explicit filter if no project |
+| `jflow search --jql QUERY` | Run user-supplied JQL |
+| `jflow show KEY` | Detail; `--comments`, `--history` enable paginated sections |
+| `jflow progress KEY` | Status, resolution, subtasks, and available time data |
+| `jflow summary` | Counts by category over an explicit scope or the personal view |
+| `jflow link KEY` | Write the browsable URL and newline; does not need to query Jira |
+| `jflow open KEY` | Open URL in default browser and report whether the process could launch |
+| `jflow transitions KEY` | List IDs, names, destinations, and fields of available transitions |
+| `jflow transition KEY --id ID` | Run an explicit transition |
+| `jflow start KEY` | Resolve start intent using the rules in section 9 |
+| `jflow done KEY` | Resolve complete intent using the rules in section 9 |
+| `jflow close KEY` | Resolve close intent using configured rule; not a blind alias of done |
+| `jflow workflow map` | Wizard to save a validated mapping per project and issue type |
+| `jflow ui` | TUI; accepts `--view` for a saved view when available |
+| `jflow doctor` | Diagnose configuration, authentication, connectivity, terminal, and keyring |
+| `jflow completion bash\|zsh\|fish` | Generate completion without auto-installing it |
+| `jflow version` | Version, commit, and platform; optional JSON format |
 
-`close` puede apuntar a la misma transición que `done` si el usuario lo configura. En workflows que distinguen Resuelto y Cerrado, conserva la diferencia. No existe un estado universal llamado Closed.
+`close` may target the same transition as `done` if the user configures it. In workflows that distinguish Resolved and Closed, it preserves the difference. There is no universal state named Closed.
 
-### 4.2 Opciones compartidas
+### 4.2 Shared options
 
-| Opción | Regla |
+| Option | Rule |
 | --- | --- |
-| `--profile NOMBRE` | Selección temporal; no modifica el perfil activo |
-| `--format table\|plain\|json` | Presentación; `table` solo para colecciones, rechazar combinaciones incompatibles |
-| `--no-color`, `--ascii` | Quitar color o caracteres gráficos |
-| `--no-input` | Prohibir preguntas, editor, selector y TUI; fallar si faltan datos |
-| `--yes` | Aceptar la confirmación de una operación ya completamente resuelta |
-| `--dry-run` | Preparar operación y mostrar efecto previsto; permite lecturas HTTP, no mutaciones Jira |
-| `--refresh` | Omitir caché y consultar servidor |
-| `--offline` | Consultar exclusivamente datos locales; incompatible con mutaciones |
-| `--timeout 30s` | Plazo total del comando, incluidas esperas y verificación |
-| `--verbose` | Diagnóstico redactado por stderr |
+| `--profile NAME` | Temporary selection; does not modify active profile |
+| `--format table\|plain\|json` | Presentation; `table` only for collections, reject incompatible combinations |
+| `--no-color`, `--ascii` | Remove color or graphic characters |
+| `--no-input` | Forbid questions, editor, selector, and TUI; fail if data is missing |
+| `--yes` | Accept confirmation of an already fully resolved operation |
+| `--dry-run` | Prepare operation and show intended effect; allows HTTP reads, no Jira mutations |
+| `--refresh` | Skip cache and query the server |
+| `--offline` | Query local data only; incompatible with mutations |
+| `--timeout 30s` | Total command deadline, including waits and verification |
+| `--verbose` | Redacted diagnostic to stderr |
 
-`--yes` no elige una transición ambigua ni inventa campos. `--format json` implica `--no-input`. Una mutación en JSON requiere `--yes` o `--dry-run`. La TUI rechaza `--format` y requiere una terminal apropiada. `--offline --refresh` es inválido.
+`--yes` does not choose an ambiguous transition or invent fields. `--format json` implies `--no-input`. A JSON mutation requires `--yes` or `--dry-run`. The TUI rejects `--format` and requires a suitable terminal. `--offline --refresh` is invalid.
 
-Para listados: `--project`, `--status-category todo|in-progress|done`, `--type`, `--priority`, `--include-done`, `--updated-since`, `--sort`, `--limit`, `--all`, `--page-size` y `--page-token`. La opción `--status-category done` elimina automáticamente la exclusión predeterminada de completados.
+For listings: `--project`, `--status-category todo|in-progress|done`, `--type`, `--priority`, `--include-done`, `--updated-since`, `--sort`, `--limit`, `--all`, `--page-size`, and `--page-token`. The `--status-category done` option automatically removes the default exclusion of completed items.
 
-`--limit` limita el total devuelto, 50 por defecto. `--page-size` limita cada solicitud, 50 por defecto. `--all` recorre hasta agotar, con un máximo protector configurable de 5.000 resultados; alcanzar ese máximo produce resultado parcial, nunca un total exacto. Para reanudar una página, usar un token opaco ligado al perfil, la consulta y sus campos. Si el límite cae a mitad de una página, solicitar solamente los elementos restantes cuando sea posible; el cursor propio deberá conservar el remanente si el proveedor entrega más.
+`--limit` limits the total returned, default 50. `--page-size` limits each request, default 50. `--all` walks until exhausted, with a configurable safety maximum of 5,000 results; reaching that maximum produces a partial result, never an exact total. To resume a page, use an opaque token tied to the profile, query, and its fields. If the limit falls mid-page, request only the remaining elements when possible; the own cursor must preserve the remainder if the provider returns more.
 
-No mezclar `search --jql` con filtros estructurados: rechazar la combinación para evitar interpretaciones inesperadas. `--sort` debe mapear a una lista permitida de campos, nunca interpolar texto arbitrario como sintaxis.
+Do not mix `search --jql` with structured filters: reject the combination to avoid unexpected interpretations. `--sort` must map to an allowed list of fields, never interpolate arbitrary text as syntax.
 
-### 4.3 Funciones de productividad y ejemplos
+### 4.3 Productivity functions and examples
 
 ```bash
-jflow comment add APP-123 --body "Pruebas completadas; pendiente revisión."
+jflow comment add APP-123 --body "Tests completed; pending review."
 jflow comment add APP-123 --editor
 jflow assign APP-123 --me
 jflow edit APP-123 --priority-id 2 --due 2026-09-15
 jflow reopen APP-123
-jflow view save revision --jql 'assignee = currentUser() AND status = "Code Review"'
-jflow view run revision
+jflow view save review --jql 'assignee = currentUser() AND status = "Code Review"'
+jflow view run review
 jflow favorite add APP-123
 jflow board --mine
 jflow sprint list --board 42
 jflow sprint show 86
 jflow worklog add APP-123 --time 45m --started 2026-09-06T09:00:00-06:00
 jflow context issue --from-git
-jflow summary --view revision --format json
+jflow summary --view review --format json
 ```
 
-Los IDs y fechas son ejemplos. `--editor` lanza un ejecutable y argumentos configurados, suspende la TUI y presenta una vista previa antes de publicar. El borrador se guarda con permisos privados y se conserva si el envío falla. En la primera versión de comentarios se admite texto plano convertido a ADF; Markdown enriquecido será una ampliación explícita.
+IDs and dates are examples. `--editor` launches a configured executable and arguments, suspends the TUI, and shows a preview before publishing. The draft is saved with private permissions and kept if sending fails. The first version of comments supports plain text converted to ADF; rich Markdown will be an explicit extension.
 
-`context issue --from-git` solo lee la rama con `git symbolic-ref --short HEAD`; HEAD separado, ninguna clave o múltiples claves generan un error explicativo. La detección de Git no sucede implícitamente durante mutaciones.
+`context issue --from-git` only reads the branch with `git symbolic-ref --short HEAD`; detached HEAD, no key, or multiple keys produce an explanatory error. Git detection does not happen implicitly during mutations.
 
-## 5. Diseño visual de la terminal
+## 5. Terminal visual design
 
-### 5.1 Pantalla principal
+### 5.1 Main screen
 
-Wireframe de referencia, no un requisito de dimensiones exactas:
+Reference wireframe, not a requirement of exact dimensions:
 
 ```text
-╭ Jira Flow · trabajo · empresa.atlassian.net ─────────── sincronizado 10:32 ╮
-│ Mis pendientes  |  Favoritos  |  Vistas                  / Buscar         │
+╭ Jira Flow · work · company.atlassian.net ─────────── synced 10:32 ╮
+│ My pending  |  Favorites  |  Views                  / Search         │
 ├──────────────────────────────────────┬───────────────────────────────────┤
-│ CLAVE    ESTADO        RESUMEN       │ APP-123 · Mejorar autenticación   │
-│ APP-123  En progreso   Mejorar auth  │ Estado: En progreso              │
-│ APP-119  Por hacer     Corregir UI   │ Resolución: —                    │
-│ APP-110  En revisión   Agregar logs  │ Asignado: Tú · Prioridad: Alta    │
+│ KEY    STATUS        SUMMARY       │ APP-123 · Improve authentication   │
+│ APP-123  In progress  Improve auth  │ Status: In progress              │
+│ APP-119  To do      Fix UI   │ Resolution: —                    │
+│ APP-110  In review  Add logs  │ Assignee: You · Priority: High    │
 │                                      │                                   │
-│ 3 cargados · hay más resultados       │ Subtareas: 2 de 4 · 50%          │
-│                                      │ Descripción y actividad…         │
+│ 3 loaded · more results       │ Subtasks: 2 of 4 · 50%          │
+│                                      │ Description and activity…         │
 ├──────────────────────────────────────┴───────────────────────────────────┤
-│ ↑↓ mover · Enter detalle · s iniciar · d completar · o abrir · ? ayuda  │
+│ ↑↓ move · Enter detail · s start · d done · o open · ? help  │
 ╰──────────────────────────────────────────────────────────────────────────╯
 ```
 
-Usar bordes discretos, espacio suficiente, encabezados cortos y un acento cian/azul. To do se presenta con texto neutro, In progress en azul, Done en verde; errores en rojo y avisos en ámbar. Cada color siempre acompaña una etiqueta: el significado no depende del color.
+Use discreet borders, enough spacing, short headers, and a cyan/blue accent. To do is shown with neutral text, In progress in blue, Done in green; errors in red and warnings in amber. Every color always accompanies a label: meaning does not depend on color.
 
-No exigir Nerd Fonts ni emojis. Tema `auto`, `dark`, `light` y `mono`; `NO_COLOR` desactiva color independientemente del tema. Si no puede determinar el fondo, usar paleta conservadora configurable. `--ascii` sustituye bordes, barras y símbolos por caracteres simples.
+Do not require Nerd Fonts or emojis. Theme `auto`, `dark`, `light`, and `mono`; `NO_COLOR` disables color independently of theme. If it cannot determine the background, use a configurable conservative palette. `--ascii` replaces borders, bars, and symbols with simple characters.
 
-### 5.2 Navegación
+### 5.2 Navigation
 
-| Tecla | Acción |
+| Key | Action |
 | --- | --- |
-| Flechas o `j/k` | Mover selección |
-| Enter | Abrir detalle o aceptar selector activo |
-| Tab / Shift+Tab | Cambiar foco |
-| `/` | Filtrar localmente los elementos cargados, etiquetado como filtro local |
-| `Ctrl+f` | Abrir búsqueda remota explícita |
-| `s` / `d` / `x` | Preparar iniciar / completar / cerrar |
-| `t` | Ver transiciones |
-| `o` | Abrir navegador |
-| `y` | Mostrar enlace seleccionable; copiar si existe backend disponible |
-| `r` | Actualizar vista |
-| `n` | Cargar siguiente página |
-| `?` | Ayuda contextual |
-| Esc | Volver o cancelar diálogo |
-| `q` / Ctrl+C | Salir o cancelar; proteger borradores sin publicar |
+| Arrows or `j/k` | Move selection |
+| Enter | Open detail or accept active selector |
+| Tab / Shift+Tab | Change focus |
+| `/` | Locally filter loaded items, labeled as local filter |
+| `Ctrl+f` | Open explicit remote search |
+| `s` / `d` / `x` | Prepare start / complete / close |
+| `t` | View transitions |
+| `o` | Open browser |
+| `y` | Show selectable link; copy if backend is available |
+| `r` | Refresh view |
+| `n` | Load next page |
+| `?` | Contextual help |
+| Esc | Go back or cancel dialog |
+| `q` / Ctrl+C | Exit or cancel; protect unpublished drafts |
 
-Los atajos no se ejecutan mientras el foco está en un campo de texto. Una tecla de mutación abre revisión y confirmación; no envía directamente. Deshabilitar la acción mientras una solicitud está pendiente para evitar duplicados.
+Shortcuts do not run while focus is in a text field. A mutation key opens review and confirmation; it does not send directly. Disable the action while a request is pending to avoid duplicates.
 
-La copia automática al portapapeles es opcional: macOS `pbcopy`, Linux `wl-copy` o `xclip` si existen. La URL mostrada es la alternativa universal, especialmente por SSH. No emitir OSC 52 automáticamente ni presentar la copia como exitosa si el backend falla.
+Automatic clipboard copy is optional: macOS `pbcopy`, Linux `wl-copy` or `xclip` if available. The displayed URL is the universal alternative, especially via SSH. Do not emit OSC 52 automatically or present copy as successful if the backend fails.
 
-### 5.3 Estados y tamaños
+### 5.3 States and sizes
 
-- Ancho de 110 columnas o más: dos paneles, aproximadamente 55/45.
-- De 80 a 109: listado y detalle alternables, menos columnas.
-- Menos de 80: vista compacta; menos de 60 o altura menor de 15: mensaje para usar CLI o ampliar terminal.
-- Carga: spinner con texto; error inicial: explicación y tecla de reintento.
-- Lista vacía: distinguir consulta válida sin resultados de falta de permisos o error.
-- Caché antigua: fecha visible; actualización parcial: aviso persistente.
-- Cambio de tamaño: recalcular layout sin perder selección ni borrador.
+- 110 columns or wider: two panels, approximately 55/45.
+- 80 to 109: list and detail alternate, fewer columns.
+- Less than 80: compact view; less than 60 or height less than 15: message to use CLI or enlarge terminal.
+- Loading: spinner with text; initial error: explanation and retry key.
+- Empty list: distinguish a valid query with no results from lack of permissions or an error.
+- Stale cache: visible date; partial update: persistent warning.
+- Resize: recalculate layout without losing selection or draft.
 
-Las llamadas HTTP deben ejecutarse fuera de `Update`/`View` como comandos asíncronos. Cada carga llevará un ID de generación: descartar respuestas antiguas tras cambiar filtro o perfil. Cancelar solicitudes obsoletas con `context.Context`.
+HTTP calls must run outside `Update`/`View` as asynchronous commands. Each load carries a generation ID: discard old responses after changing filter or profile. Cancel obsolete requests with `context.Context`.
 
-Al abrir navegador o editor, restaurar/suspender terminal según corresponda. Al salir, recuperar cursor, eco y pantalla, incluso por interrupción. `TERM=dumb`, salida redirigida y lector de pantalla deben tener una alternativa funcional mediante `plain`.
+When opening browser or editor, restore/suspend terminal as appropriate. On exit, recover cursor, echo, and screen, even on interruption. `TERM=dumb`, redirected output, and screen reader must have a functional alternative via `plain`.
 
-## 6. Arquitectura y estructura del repositorio
+## 6. Architecture and repository structure
 
-Dependencias permitidas:
+Allowed dependencies:
 
 ```text
-CLI Cobra ───────┐
-                ├── Casos de uso ── Dominio + puertos
-TUI Bubble Tea ─┘                      ↑
-                         Adaptadores HTTP, secretos,
-                         caché, reloj, navegador y Git
+Cobra CLI ───────┐
+                ├── Use cases ── Domain + ports
+Bubble Tea TUI ─┘                      ↑
+                         HTTP, secrets,
+                         cache, clock, browser, and Git adapters
 ```
 
-El dominio no importa Cobra, Bubble Tea, JSON HTTP ni bibliotecas del keyring. La CLI/TUI traduce interacción a solicitudes de aplicación; no construye URLs de API ni decide transiciones por su cuenta.
+The domain does not import Cobra, Bubble Tea, HTTP JSON, or keyring libraries. The CLI/TUI translates interaction into application requests; it does not build API URLs or decide transitions on its own.
 
-Estructura propuesta:
+Proposed structure:
 
 ```text
 jira-flow/
   cmd/jflow/main.go
   internal/
-    app/                 # Casos de uso; composición y cancelación
-    domain/              # Issue, estado, progreso, transición, errores
-    ports/               # Interfaces mínimas consumidas por app
+    app/                 # Use cases; composition and cancellation
+    domain/              # Issue, status, progress, transition, errors
+    ports/               # Minimal interfaces consumed by app
     provider/
-      jiracloud/         # DTOs, endpoints, ADF, paginación Cloud
-      jiradc/            # Solo al implementar Entrega C
-    transport/           # HTTP, autenticación, límites, redacción
-    workflow/            # Resolución de intenciones y formularios
-    cli/                 # Constructores Cobra y flags
-    tui/                 # Modelos, mensajes, componentes y temas
-    output/              # Texto, tabla, JSON v1
-    config/              # Esquema, precedencia, migraciones y escritura
-    secrets/             # Keyring y entorno
-    cache/               # Memoria y persistencia opcional
-    platform/            # Browser, clipboard, editor, rutas y terminal
-    actions/             # Registro de acciones compartidas
-  testdata/              # Fixtures sintéticos sin información privada
-  tests/integration/     # Servidor HTTP simulado y pruebas del binario
+      jiracloud/         # Cloud DTOs, endpoints, ADF, pagination
+      jiradc/            # Only when implementing Delivery C
+    transport/           # HTTP, authentication, limits, redaction
+    workflow/            # Intent resolution and forms
+    cli/                 # Cobra constructors and flags
+    tui/                 # Models, messages, components, and themes
+    output/              # Text, table, JSON v1
+    config/              # Schema, precedence, migrations, and writes
+    secrets/             # Keyring and environment
+    cache/               # Memory and optional persistence
+    platform/            # Browser, clipboard, editor, paths, and terminal
+    actions/             # Shared action registry
+  testdata/              # Synthetic fixtures without private information
+  tests/integration/     # Simulated HTTP server and binary tests
   docs/
     architecture.md
     commands.md
@@ -299,13 +299,13 @@ jira-flow/
   README.md
 ```
 
-Dependencias externas iniciales: Cobra, las tres bibliotecas Charm, `golang.org/x/term` para detección/entrada oculta y `github.com/zalando/go-keyring`. Utilizar `net/http`, `encoding/json`, `log/slog`, `testing` y `httptest` del estándar. Evitar SDK Jira completo, ORM y base de datos hasta que un requisito lo justifique.
+Initial external dependencies: Cobra, the three Charm libraries, `golang.org/x/term` for hidden input/terminal detection, and `github.com/zalando/go-keyring`. Use `net/http`, `encoding/json`, `log/slog`, `testing`, and `httptest` from the standard library. Avoid full Jira SDK, ORM, and database until a requirement justifies them.
 
-Fijar versiones exactas compatibles en `go.mod`/`go.sum` durante F0; no combinar componentes Charm v1/v2. Herramientas de lint y release se fijan igualmente en CI. El objetivo es `CGO_ENABLED=0`; comprobarlo con las dependencias elegidas antes de prometer binarios sin bibliotecas adicionales.
+Pin exact compatible versions in `go.mod`/`go.sum` during F0; do not mix Charm v1/v2 components. Lint and release tools are also pinned in CI. The target is `CGO_ENABLED=0`; verify it with the chosen dependencies before promising binaries without extra libraries.
 
-### 6.1 Contratos de dominio
+### 6.1 Domain contracts
 
-Tipos mínimos; son especificaciones conceptuales que el agente debe convertir en tipos Go completos:
+Minimal types; these are conceptual specifications the agent must turn into complete Go types:
 
 ```go
 type Issue struct {
@@ -346,43 +346,43 @@ type SecretStore interface {
 }
 ```
 
-Otros contratos: `CommentReader`, `CommentWriter`, `IssueEditor`, `WorklogWriter`, `Browser`, `Clipboard`, `Cache`, `Clock` y `Sleeper`. Añadirlos al implementar su función, no una interfaz monolítica con métodos vacíos.
+Other contracts: `CommentReader`, `CommentWriter`, `IssueEditor`, `WorklogWriter`, `Browser`, `Clipboard`, `Cache`, `Clock`, and `Sleeper`. Add them when implementing their function, not as a monolithic interface with empty methods.
 
-`IssueDetail` contiene descripción normalizada, subtareas, enlaces y secciones paginadas. `FieldSpec` contiene ID, nombre, requerido, tipo, valores permitidos y metadatos relevantes. `Transition` contiene ID, nombre, estado destino y campos. IDs siempre como strings salvo cuando un endpoint exija expresamente números; no inferir semántica del valor numérico.
+`IssueDetail` contains normalized description, subtasks, links, and paginated sections. `FieldSpec` contains ID, name, required, type, allowed values, and relevant metadata. `Transition` contains ID, name, destination state, and fields. IDs are always strings unless an endpoint explicitly requires numbers; do not infer semantics from a numeric value.
 
-`PreparedAction` contiene perfil, issue, intención, transición resuelta, campos, estado observado y cambios previstos; no contiene secretos. `ApplyResult` distingue `verified`, `accepted_unverified`, `unknown`, `failed` y `noop`. Los serializadores públicos son independientes de los tipos internos para poder refactorizar sin romper scripts.
+`PreparedAction` contains profile, issue, intent, resolved transition, fields, observed state, and predicted changes; it contains no secrets. `ApplyResult` distinguishes `verified`, `accepted_unverified`, `unknown`, `failed`, and `noop`. Public serializers are independent of internal types so refactoring does not break scripts.
 
-## 7. Configuración, autenticación y perfiles
+## 7. Configuration, authentication, and profiles
 
-### 7.1 Rutas y precedencia
+### 7.1 Paths and precedence
 
-Linux: configuración en `$XDG_CONFIG_HOME/jflow/config.json` o `~/.config/jflow/config.json`; caché en `$XDG_CACHE_HOME/jflow` o `~/.cache/jflow`; estado en `$XDG_STATE_HOME/jflow` o `~/.local/state/jflow`.
+Linux: configuration in `$XDG_CONFIG_HOME/jflow/config.json` or `~/.config/jflow/config.json`; cache in `$XDG_CACHE_HOME/jflow` or `~/.cache/jflow`; state in `$XDG_STATE_HOME/jflow` or `~/.local/state/jflow`.
 
-macOS: configuración/estado en `~/Library/Application Support/jflow/` y caché en `~/Library/Caches/jflow/`. Implementar rutas en un solo módulo con pruebas; no asumir que `os.UserConfigDir` y XDG tienen idéntica semántica entre plataformas.
+macOS: configuration/state in `~/Library/Application Support/jflow/` and cache in `~/Library/Caches/jflow/`. Implement paths in a single module with tests; do not assume `os.UserConfigDir` and XDG have identical semantics across platforms.
 
-Precedencia: flags explícitos > variables `JFLOW_*` > perfil seleccionado > valores globales > valores predeterminados. Resolver primero la ruta `JFLOW_CONFIG`, después el perfil y después sus opciones. No cargar configuración del repositorio actual automáticamente.
+Precedence: explicit flags > `JFLOW_*` variables > selected profile > global values > defaults. Resolve `JFLOW_CONFIG` path first, then the profile, then its options. Do not auto-load configuration from the current repository.
 
-Variables iniciales: `JFLOW_CONFIG`, `JFLOW_PROFILE`, `JFLOW_TOKEN`, `JFLOW_EMAIL`, `JFLOW_NO_INPUT`. `JFLOW_TOKEN` solo afecta a la invocación/perfil seleccionado y nunca se persiste automáticamente. No aceptar `--token VALOR` para evitar exponerlo en historial y argumentos del proceso.
+Initial variables: `JFLOW_CONFIG`, `JFLOW_PROFILE`, `JFLOW_TOKEN`, `JFLOW_EMAIL`, `JFLOW_NO_INPUT`. `JFLOW_TOKEN` only affects the selected invocation/profile and is never persisted automatically. Do not accept `--token VALUE` to avoid exposing it in shell history and process arguments.
 
-### 7.2 Ejemplo de configuración
+### 7.2 Configuration example
 
-Los identificadores siguientes son ilustrativos. El asistente debe guardar valores reales descubiertos, nunca copiar estos IDs como predeterminados:
+The following identifiers are illustrative. The wizard must save real discovered values, never copy these IDs as defaults:
 
 ```json
 {
   "schema_version": 1,
-  "active_profile": "trabajo",
+  "active_profile": "work",
   "ui": {"theme": "auto", "ascii": false, "language": "es"},
   "cache": {"persist": false, "list_ttl_seconds": 60, "detail_ttl_seconds": 30},
   "profiles": {
-    "trabajo": {
+    "work": {
       "provider": "jira-cloud",
-      "site_url": "https://empresa.atlassian.net",
-      "cloud_id": "ID-REAL-DEL-SITIO",
+      "site_url": "https://company.atlassian.net",
+      "cloud_id": "REAL-SITE-ID",
       "auth": {
         "method": "api-token-scoped",
-        "email": "persona@example.com",
-        "credential_ref": "perfil-uuid-generado"
+        "email": "person@example.com",
+        "credential_ref": "profile-uuid-generated"
       },
       "default_project": "APP",
       "timezone": "America/Monterrey",
@@ -397,7 +397,7 @@ Los identificadores siguientes son ilustrativos. El asistente debe guardar valor
         }
       ],
       "views": {
-        "mis-pendientes": "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC, key ASC"
+        "my-pending": "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC, key ASC"
       },
       "field_map": {"story_points": null}
     }
@@ -405,62 +405,62 @@ Los identificadores siguientes son ilustrativos. El asistente debe guardar valor
 }
 ```
 
-Configurar `api-token-unscoped` para token sin scopes. `api_base_url` se deriva del método y no se guarda como un segundo valor editable que pueda contradecir sitio/cloud ID. Validar HTTPS, origen, ruta base y ausencia de usuario/contraseña en URL. En Data Center preservar el context path cuando se implemente.
+Configure `api-token-unscoped` for unscoped tokens. `api_base_url` is derived from the method and is not saved as a second editable value that could contradict site/cloud ID. Validate HTTPS, origin, base path, and absence of user/password in the URL. In Data Center, preserve the context path when implemented.
 
-Archivos privados `0600` y directorios `0700`, escritura temporal en el mismo directorio seguida de rename y bloqueo para evitar perder cambios entre procesos. Migraciones por `schema_version`, respaldo antes de migrar y rechazo de versiones futuras desconocidas. No imprimir credenciales al mostrar configuración.
+Private files `0600` and directories `0700`, temporary write in the same directory followed by rename and locking to avoid losing changes across processes. Migrations by `schema_version`, backup before migrating, and rejection of unknown future versions. Do not print credentials when showing configuration.
 
-### 7.3 Inicio de sesión
+### 7.3 Login
 
-1. Solicitar nombre de perfil, URL del sitio, correo y tipo de token.
-2. Explicar en el asistente cómo generar el token mediante un enlace oficial.
-3. Para token con scopes, solicitar el cloud ID y ofrecer instrucciones de descubrimiento oficiales; no inferirlo del nombre del sitio ni asumir que endpoints OAuth aceptan Basic.
-4. Recibir token con entrada oculta o `--token-stdin` para automatización.
-5. Construir autenticación Basic correo:token en memoria y comprobar `myself`.
-6. Mostrar la identidad encontrada y guardar la referencia y el secreto solo tras validación exitosa.
-7. Probar una consulta pequeña y, opcionalmente, transiciones de un issue elegido para diagnosticar permisos de lectura/escritura sin ejecutar cambios.
+1. Prompt for profile name, site URL, email, and token type.
+2. Explain in the wizard how to generate the token via an official link.
+3. For scoped token, prompt for cloud ID and offer official discovery instructions; do not infer it from the site name or assume OAuth endpoints accept Basic.
+4. Receive token with hidden input or `--token-stdin` for automation.
+5. Build Basic auth email:token in memory and check `myself`.
+6. Show the discovered identity and save reference and secret only after successful validation.
+7. Try a small query and, optionally, transitions of a chosen issue to diagnose read/write permissions without making changes.
 
-Jira Cloud admite Basic con correo y API token. Los tokens con scopes utilizan `https://api.atlassian.com/ex/jira/{cloudId}`; los tokens sin scopes usan la URL del sitio. Los enlaces navegables siguen apuntando al sitio. Los tokens expiran; un 401 debe sugerir comprobar vencimiento o revocación, sin afirmar que esta sea necesariamente la causa. Fuentes: [Basic auth](https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/), [tokens y scopes](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/), [identidad actual](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/).
+Jira Cloud supports Basic with email and API token. Scoped tokens use `https://api.atlassian.com/ex/jira/{cloudId}`; unscoped tokens use the site URL. Browsable links still point to the site. Tokens expire; a 401 should suggest checking expiration or revocation, without asserting this is necessarily the cause. Sources: [Basic auth](https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/), [tokens and scopes](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/), [current identity](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/).
 
-Documentar una tabla de scopes por comando a partir de la referencia vigente de cada endpoint durante F0. No copiar scopes OAuth indiscriminadamente como si fueran intercambiables con todos los tipos de token. Se puede usar un perfil de solo lectura; las funciones de escritura deben reportar permisos/scopes insuficientes cuando corresponda.
+Document a scopes-by-command table from the current reference for each endpoint during F0. Do not indiscriminately copy OAuth scopes as if they were interchangeable with all token types. A read-only profile can be used; write functions must report insufficient permissions/scopes when appropriate.
 
-### 7.4 Almacenamiento de secretos
+### 7.4 Secret storage
 
-Usar el servicio `jflow` y una referencia aleatoria por perfil, ligada al sitio y usuario. Linux requiere una sesión con Secret Service; macOS usa Keychain. La biblioteca propuesta depende de D-Bus/Secret Service en Linux y de `/usr/bin/security` en macOS. Fuente: [go-keyring](https://github.com/zalando/go-keyring).
+Use the `jflow` service and a random reference per profile, tied to site and user. Linux requires a session with Secret Service; macOS uses Keychain. The proposed library depends on D-Bus/Secret Service in Linux and `/usr/bin/security` in macOS. Source: [go-keyring](https://github.com/zalando/go-keyring).
 
-En una sesión SSH sin keyring, permitir credencial solo en memoria mediante entorno o entrada estándar; no recurrir silenciosamente a texto plano en disco. Evaluar el backend macOS para evitar exposición del token en argumentos durante el guardado: si la biblioteca seleccionada no cumple, implementar un backend nativo o documentar y resolver ese punto antes de publicar autenticación persistente. La interfaz `SecretStore` permite sustituirlo.
+In an SSH session without keyring, allow in-memory credentials only via environment or stdin; do not silently fall back to a plain-text file. Evaluate the macOS backend to avoid exposing the token in arguments during save: if the chosen library does not meet the requirement, implement a native backend or document and resolve that point before publishing persistent authentication. The `SecretStore` interface allows replacing it.
 
-`auth logout` elimina la copia local y purga datos privados del perfil. Si una variable de entorno sigue aportando token, indicar que aún existe esa fuente; no afirmar que se cerró toda autenticación. La revocación remota del token se realiza desde Atlassian.
+`auth logout` removes the local copy and purges profile private data. If an environment variable still provides a token, indicate that the source remains; do not claim all authentication was closed. Remote token revocation is done from Atlassian.
 
-OAuth 3LO se reserva para una decisión de arquitectura posterior. No incrustar un client secret en el binario, ni inventar soporte device-code/PKCE. Verificar los flujos autorizados por Atlassian y si requieren un componente confidencial antes de diseñar esa entrega. Referencia: [autenticación de integraciones](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/).
+OAuth 3LO is reserved for a later architectural decision. Do not embed a client secret in the binary, or invent support for device-code/PKCE. Check the flows authorized by Atlassian and whether they require a confidential component before designing that delivery. Reference: [integration authentication](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/).
 
-## 8. Cliente Jira y consultas
+## 8. Jira client and queries
 
-### 8.1 Operaciones de referencia
+### 8.1 Reference operations
 
-Rutas relativas a la base autenticada correspondiente:
+Relative to the corresponding authenticated base:
 
-| Necesidad | Operación Cloud |
+| Need | Cloud operation |
 | --- | --- |
-| Identidad | `GET /rest/api/3/myself` |
-| Búsqueda | `POST /rest/api/3/search/jql` |
+| Identity | `GET /rest/api/3/myself` |
+| Search | `POST /rest/api/3/search/jql` |
 | Issue | `GET /rest/api/3/issue/{key}` |
-| Transiciones | `GET /rest/api/3/issue/{key}/transitions?expand=transitions.fields` |
-| Ejecutar transición | `POST /rest/api/3/issue/{key}/transitions` |
-| Comentarios | `GET` / `POST /rest/api/3/issue/{key}/comment` |
-| Historial | `GET /rest/api/3/issue/{key}/changelog` |
-| Asignar | `PUT /rest/api/3/issue/{key}/assignee` |
-| Editar | `PUT /rest/api/3/issue/{key}`; consultar metadatos de edición cuando aplique |
-| Campos | `GET /rest/api/3/field` |
-| Tiempo | `GET` / `POST /rest/api/3/issue/{key}/worklog` |
-| Boards/sprints | Adaptador opcional para `/rest/agile/1.0/...` |
+| Transitions | `GET /rest/api/3/issue/{key}/transitions?expand=transitions.fields` |
+| Run transition | `POST /rest/api/3/issue/{key}/transitions` |
+| Comments | `GET` / `POST /rest/api/3/issue/{key}/comment` |
+| History | `GET /rest/api/3/issue/{key}/changelog` |
+| Assign | `PUT /rest/api/3/issue/{key}/assignee` |
+| Edit | `PUT /rest/api/3/issue/{key}`; query edit metadata when applicable |
+| Fields | `GET /rest/api/3/field` |
+| Time | `GET` / `POST /rest/api/3/issue/{key}/worklog` |
+| Boards/sprints | Optional adapter for `/rest/agile/1.0/...` |
 
-Referencias: [issues y transiciones](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comentarios](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [campos](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-fields/), [worklogs](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-worklogs/), [Jira Software](https://developer.atlassian.com/cloud/jira/software/rest/api-group-board/).
+References: [issues and transitions](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comments](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [fields](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-fields/), [worklogs](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-worklogs/), [Jira Software](https://developer.atlassian.com/cloud/jira/software/rest/api-group-board/).
 
-La búsqueda inicial utilizará el endpoint mejorado `/search/jql`, no el antiguo `/search` en retirada. Debe recorrer `nextPageToken` y tolerar resultados que todavía no reflejen un cambio reciente; Jira documenta `reconcileIssues` para reforzar consistencia tras cambios conocidos. Fuente: [búsqueda Jira Cloud](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/).
+Initial search will use the enhanced `/search/jql` endpoint, not the retired `/search`. It must walk `nextPageToken` and tolerate results that may not yet reflect a recent change; Jira documents `reconcileIssues` to reinforce consistency after known changes. Source: [Jira Cloud search](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/).
 
-### 8.2 Construcción de consultas
+### 8.2 Query construction
 
-Consulta predeterminada de `mine`:
+Default `mine` query:
 
 ```jql
 assignee = currentUser()
@@ -468,7 +468,7 @@ AND statusCategory != Done
 ORDER BY updated DESC, key ASC
 ```
 
-Consulta de ejemplo con filtro explícito:
+Example query with explicit filter:
 
 ```jql
 assignee = currentUser()
@@ -477,184 +477,184 @@ AND statusCategory = "In Progress"
 ORDER BY priority DESC, updated DESC, key ASC
 ```
 
-Implementar un constructor pequeño de predicados con escape de literales y una lista de campos/operadores permitidos. El `--jql` explícito se envía como texto del usuario, sin ejecutarlo en shell. Traducir categorías internas `todo`, `in-progress`, `done` a los literales JQL correspondientes; traducir claves del proveedor `new`, `indeterminate`, `done` al dominio. Nombres de estados libres no se usan para inferir categorías.
+Implement a small predicate builder with literal escaping and an allowed list of fields/operators. Explicit `--jql` is sent as user text, without shell execution. Translate internal categories `todo`, `in-progress`, `done` to the corresponding JQL literals; translate provider keys `new`, `indeterminate`, `done` to the domain. Free state names are not used to infer categories.
 
-Solicitar solo campos de listado: clave/ID y `summary,status,assignee,priority,issuetype,project,updated,duedate,resolution`. Descripción, comentarios, historial y otros campos se cargan bajo demanda. La lista no debe hacer una solicitud extra por fila.
+Request only listing fields: key/ID and `summary,status,assignee,priority,issuetype,project,updated,duedate,resolution`. Description, comments, history, and other fields are loaded on demand. The list must not make an extra request per row.
 
-La paginación de cada endpoint vive en su adaptador; comentarios y changelog no tienen por qué seguir el cursor de búsqueda. Detectar cursores repetidos, deduplicar por ID y marcar `complete=false` ante truncamiento o error parcial. Las búsquedas sobre datos cambiantes no equivalen a snapshots transaccionales.
+Pagination of each endpoint lives in its adapter; comments and changelog need not follow the search cursor. Detect repeated cursors, deduplicate by ID, and mark `complete=false` on truncation or partial error. Searches over changing data are not transactional snapshots.
 
-### 8.3 Transporte y fallos
+### 8.3 Transport and failures
 
-Política propuesta: conexión de 5 segundos, plazo total predeterminado de 30 segundos, hasta 3 intentos de lectura y concurrencia máxima inicial de 4. Son parámetros del producto, no límites publicados por Jira.
+Proposed policy: 5 second connection, default 30 second total deadline, up to 3 read attempts, and initial maximum concurrency of 4. These are product parameters, not Jira-published limits.
 
-- Lecturas: reintentar errores de red transitorios, 429 y 502/503/504 con retroceso exponencial y jitter.
-- Respetar `Retry-After`; si supera el tiempo disponible, terminar con error accionable y tiempo sugerido.
-- Tratar POST de búsqueda como lectura por semántica, no como una mutación por el verbo.
-- Escrituras: un solo envío en la primera versión. Ante respuesta ambigua, reconciliar; no repetir automáticamente comentarios, worklogs ni transiciones.
-- 400: campos/JQL inválidos. 401: autenticación. 403: acceso rechazado. 404: recurso inexistente o no visible; no distinguir sin evidencia. 409: conflicto cuando el proveedor lo devuelva.
-- Respuestas HTML inesperadas: posible proxy/login; devolver diagnóstico sin volcar el cuerpo completo.
+- Reads: retry transient network errors, 429, and 502/503/504 with exponential backoff and jitter.
+- Respect `Retry-After`; if it exceeds available time, end with an actionable error and suggested time.
+- Treat search POST as a read by semantics, not as a mutation because of the verb.
+- Writes: a single send in the first version. Faced with ambiguous response, reconcile; do not automatically repeat comments, worklogs, or transitions.
+- 400: invalid fields/JQL. 401: authentication. 403: access denied. 404: resource does not exist or is not visible; do not distinguish without evidence. 409: conflict when the provider returns it.
+- Unexpected HTML responses: possible proxy/login; return a diagnostic without dumping the full body.
 
-Atlassian documenta respuestas 429 y `Retry-After`, y distingue límites según integración, incluyendo tráfico con API token. El cliente responde a cabeceras y errores reales; no presupone una cuota universal. Fuente: [rate limiting](https://developer.atlassian.com/cloud/jira/platform/rate-limiting/).
+Atlassian documents 429 and `Retry-After`, and distinguishes limits by integration, including API token traffic. The client responds to real headers and errors; it does not assume a universal quota. Source: [rate limiting](https://developer.atlassian.com/cloud/jira/platform/rate-limiting/).
 
-Usar TLS validado, proxy del entorno y CA corporativa configurable. No implementar `--insecure` por defecto. No reenviar Authorization a otro origen mediante redirects; rechazar redirecciones autenticadas fuera de la base autorizada. Limitar cuerpos recibidos y redactar errores/logs antes de mostrarlos.
+Use validated TLS, environment proxy, and configurable corporate CA. Do not implement `--insecure` by default. Do not forward Authorization to another origin via redirects; reject authenticated redirects outside the authorized base. Limit received bodies and redact errors/logs before displaying them.
 
-### 8.4 Descripciones y ADF
+### 8.4 Descriptions and ADF
 
-Cloud v3 usa Atlassian Document Format en diversos campos enriquecidos. Fuente: [introducción API v3](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/).
+Cloud v3 uses Atlassian Document Format in various rich fields. Source: [API v3 intro](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/).
 
-El adaptador transforma ADF en bloques internos: párrafo, encabezado, lista, código, enlace y texto. La TUI renderiza ese árbol con estilos; `plain` conserva texto y URLs. Un nodo desconocido muestra texto descendiente o una marca de contenido no soportado; no bloquea todo el issue.
+The adapter transforms ADF into internal blocks: paragraph, header, list, code, link, and text. The TUI renders that tree with styles; `plain` keeps text and URLs. An unknown node shows descendant text or an unsupported-content marker; it does not block the whole issue.
 
-Para publicar texto plano, generar un documento ADF válido con párrafos y texto. No aceptar Markdown fingiendo convertirlo integralmente. No descargar imágenes ni ejecutar HTML; los enlaces solo se abren por acción explícita.
+To publish plain text, generate a valid ADF document with paragraphs and text. Do not accept Markdown pretending to convert it fully. Do not download images or execute HTML; links only open by explicit action.
 
-## 9. Iniciar, completar, cerrar y reabrir
+## 9. Start, complete, close, and reopen
 
-### 9.1 Principio de implementación
+### 9.1 Implementation principle
 
-Una intención del usuario y una transición Jira son objetos distintos. `start`, `done`, `close` y `reopen` son intenciones locales. El servidor define qué transiciones existen, cuáles están disponibles para el usuario y qué datos exige cada una. Nunca cambiar el estado mediante un `PUT` arbitrario a `fields.status`.
+A user intent and a Jira transition are distinct objects. `start`, `done`, `close`, and `reopen` are local intents. The server defines which transitions exist, which are available to the user, and which data each requires. Never change state via an arbitrary `PUT` to `fields.status`.
 
-El algoritmo siguiente es una política propuesta de Jira Flow. Se apoya en el catálogo de transiciones del proveedor, pero no presume que Atlassian imponga estas reglas de selección.
+The following algorithm is a proposed Jira Flow policy. It relies on the provider's transition catalog, but does not presume Atlassian imposes these selection rules.
 
-### 9.2 Resolución de intención
+### 9.2 Intent resolution
 
-Orden determinista:
+Deterministic order:
 
-1. Obtener issue y transiciones frescas, con sus campos. La caché no autoriza una mutación.
-2. Si hay `--transition-id`, buscar ese ID entre las disponibles y validar su destino.
-3. En otro caso, buscar una regla exacta por perfil, proyecto, tipo de issue, intención y estado origen. Una regla inválida produce error; no elegir silenciosamente otra transición.
-4. Para `start`, ofrecer transiciones a categoría In progress, excluyendo bucles al mismo estado. Para `done`, ofrecer las que llegan a categoría Done.
-5. Si solo hay una candidata, preparar y mostrar su nombre/destino para confirmar. Si hay más, solicitar elección; en `--no-input`, devolver ambigüedad con candidatos.
-6. Para `close`, exigir regla o elección explícita entre transiciones disponibles: categoría Done no distingue resolución de cierre. Para `reopen`, exigir igualmente regla/elección, ya que el destino puede ser To do o In progress.
-7. Si no hay candidatas, mostrar estado actual y acciones disponibles. No construir rutas de varios saltos para llegar al destino.
+1. Get issue and fresh transitions, with their fields. Cache does not authorize a mutation.
+2. If `--transition-id` is present, look up that ID among available ones and validate its destination.
+3. Otherwise, look for an exact rule by profile, project, issue type, intent, and source status. An invalid rule produces an error; do not silently choose another transition.
+4. For `start`, offer transitions to the In progress category, excluding loops to the same state. For `done`, offer those that reach the Done category.
+5. If there is only one candidate, prepare and show its name/destination for confirmation. If there are more, ask for a choice; in `--no-input`, return ambiguity with candidates.
+6. For `close`, require a rule or explicit choice among available transitions: the Done category does not distinguish resolution from closing. For `reopen`, also require rule/choice, since the destination may be To do or In progress.
+7. If there are no candidates, show the current state and available actions. Do not build multi-hop paths to reach the destination.
 
-Ejemplo: desde En progreso existen `Enviar a QA`, `Resolver` y `Cancelar`. Si Resolver y Cancelar terminan en Done, `done` presenta ambas y no asume que Cancelar representa trabajo completado. La configuración puede fijar Resolver para ese proyecto y tipo.
+Example: from In progress the transitions `Send to QA`, `Resolve`, and `Cancel` exist. If Resolve and Cancel both end in Done, `done` presents both and does not assume Cancel means work completed. The configuration can pin Resolve for that project and type.
 
-Para `start` sin destino explícito, un issue ya en categoría In progress devuelve `noop` e informa su estado. Para `done` sin regla/destino explícito, categoría Done permite `noop` con resolución visible; no afirmar que el issue fue entregado exitosamente si su resolución es Cancelado. Si existe regla, comparar el destino exacto esperado antes de decidir `noop`. `close` y `reopen` requieren conocer su destino específico. Una transición explícita de bucle sigue siendo ejecutable tras confirmación, porque puede tener efectos adicionales.
+For `start` with no explicit destination, an issue already in the In progress category returns `noop` and reports its status. For `done` with no rule/explicit destination, the Done category allows `noop` with visible resolution; do not assert the issue was successfully delivered if its resolution is Cancelled. If a rule exists, compare the exact expected destination before deciding `noop`. `close` and `reopen` need to know their specific destination. An explicit loop transition is still executable after confirmation, because it may have additional effects.
 
-### 9.3 Campos requeridos
+### 9.3 Required fields
 
-Crear un registro de editores según `FieldSpec`: texto, número, fecha, usuario, selección simple y selección múltiple. Usar IDs reales, esquemas y valores permitidos; no asumir que prioridad, resolución o story points comparten IDs entre sitios.
+Create an editor registry according to `FieldSpec`: text, number, date, user, single selection, and multiple selection. Use real IDs, schemas, and allowed values; do not assume priority, resolution, or story points share IDs across sites.
 
-En modo interactivo, mostrar únicamente los campos requeridos que falten y permitir editar los opcionales disponibles. En modo no interactivo:
+In interactive mode, show only required fields that are missing and allow editing available optional ones. In non-interactive mode:
 
 ```bash
-jflow done APP-123 --transition-id 31 --fields-file ./campos-cierre.json --dry-run
-jflow done APP-123 --transition-id 31 --fields-file ./campos-cierre.json --yes --no-input
+jflow done APP-123 --transition-id 31 --fields-file ./close-fields.json --dry-run
+jflow done APP-123 --transition-id 31 --fields-file ./close-fields.json --yes --no-input
 ```
 
-Archivo ilustrativo, con IDs obtenidos de los metadatos:
+Illustrative file, with IDs obtained from metadata:
 
 ```json
 {
   "resolution": {"id": "10000"},
-  "customfield_10421": "Pruebas revisadas"
+  "customfield_10421": "Tests reviewed"
 }
 ```
 
-`--fields-file` es un objeto de campos, no un body HTTP completo. Validar tamaño, tipo raíz, IDs de campos y tipos conocidos; el cliente envuelve esos datos en la solicitud. Una alternativa `--field-json 'resolution={"id":"10000"}'` es opcional, nunca necesaria para completar la entrega.
+`--fields-file` is a fields object, not a complete HTTP body. Validate size, root type, field IDs, and known types; the client wraps those data in the request. An alternative `--field-json 'resolution={"id":"10000"}'` is optional, never necessary to complete the delivery.
 
-Un campo no soportado permite introducir JSON explícito si su esquema puede validarse; si no es posible, explicar el campo y ofrecer `open`. Los validadores de plugins o del workflow pueden exigir condiciones no descritas en los metadatos: mostrar el rechazo del servidor y conservar los datos del formulario.
+An unsupported field allows explicit JSON entry if its schema can be validated; if not possible, explain the field and offer `open`. Plugin or workflow validators may require conditions not described in the metadata: show the server rejection and keep the form data.
 
-No asignar una resolución por defecto, no borrar la resolución al reabrir sin que el workflow lo permita y no completar subtareas automáticamente. Un issue Done con resolución vacía se muestra como tal, junto a una observación de posible configuración del workflow; la CLI no lo “repara”.
+Do not assign a default resolution, do not clear resolution when reopening unless the workflow allows it, and do not auto-complete subtasks. An issue Done with empty resolution is shown as such, along with a note about possible workflow configuration; the CLI does not “fix” it.
 
-### 9.4 Preparación, confirmación y ejecución
-
-```text
-Intención → lectura fresca → transición resuelta → campos válidos
-         → vista previa → confirmación → revalidación → envío
-         → lectura del issue → resultado verificado o incierto
-```
-
-Vista previa mínima:
+### 9.4 Preparation, confirmation, and execution
 
 ```text
-Sitio: empresa.atlassian.net · Perfil: trabajo
-APP-123 · Mejorar autenticación
-Transición: Resolver (ID 31)
-Estado: En progreso → Resuelto
-Resolución solicitada: Fixed
-¿Aplicar este cambio? [s/N]
+Intent → fresh read → resolved transition → valid fields
+      → preview → confirmation → revalidation → send
+      → issue read → verified or uncertain result
 ```
 
-Antes del POST, volver a consultar estado/transiciones si hubo interacción. Si el estado relevante o la transición cambió, invalidar la preparación y pedir nueva revisión; en automatización devolver conflicto. Este control reduce carreras, pero no garantiza compare-and-swap: el servidor sigue siendo la autoridad.
+Minimum preview:
 
-Enviar solo la transición y los campos solicitados. No añadir un comentario separado como efecto oculto de `done`. Si posteriormente se admite comentario junto con transición, definir si viaja en una única operación soportada por Jira o como dos operaciones con reporte parcial.
+```text
+Site: company.atlassian.net · Profile: work
+APP-123 · Improve authentication
+Transition: Resolve (ID 31)
+State: In progress → Resolved
+Requested resolution: Fixed
+Apply this change? [y/N]
+```
 
-### 9.5 Verificación y respuestas inciertas
+Before POST, re-query state/transitions if there was interaction. If the relevant state or transition changed, invalidate the preparation and ask for a new review; in automation return conflict. This control reduces races, but does not guarantee compare-and-swap: the server remains the authority.
 
-Después de una aceptación HTTP, invalidar detalle/listados relacionados y consultar directamente el issue. Se permiten hasta tres lecturas espaciadas dentro del plazo del comando. Comparar destino y campos relevantes; las automatizaciones pueden modificar el estado nuevamente y deben quedar reflejadas.
+Send only the transition and the requested fields. Do not add a separate comment as a hidden side effect of `done`. If later supporting comment with transition, define whether it travels in a single Jira-supported operation or as two operations with partial reporting.
 
-- `verified`: se recibió aceptación y se observó el destino esperado.
-- `accepted_unverified`: Jira aceptó la solicitud, pero no fue posible confirmar el estado final. Informar que no debe repetirse ciegamente.
-- `unknown`: el envío pudo haber llegado y no hubo respuesta concluyente. Puede mostrarse el estado observado posteriormente, pero no atribuir el cambio a esta CLI sin evidencia.
-- `failed`: rechazo confirmado; incluir información de campos cuando exista.
-- `noop`: ya se satisface la intención según las reglas descritas, sin enviar POST.
+### 9.5 Verification and uncertain responses
 
-No se garantiza semántica “exactamente una vez”. No usar un header de idempotencia inventado: sin soporte del endpoint no evita duplicados. En un timeout de comentario/worklog, mostrar estado incierto y permitir inspeccionar actividad; no reenviar automáticamente.
+After an HTTP acceptance, invalidate related detail/listings and query the issue directly. Up to three spaced reads are allowed within the command deadline. Compare destination and relevant fields; automations may change state again and must be reflected.
 
-Guardar únicamente metadatos mínimos de acciones recientes, por perfil: UUID local, clave, acción, hora y resultado. Nunca token, descripción ni cuerpo de comentario. Permitir desactivar este registro; TTL predeterminado de siete días. El UUID local facilita diagnóstico, pero no es un identificador de transacción del servidor.
+- `verified`: acceptance received and expected destination observed.
+- `accepted_unverified`: Jira accepted the request, but the final state could not be confirmed. Inform that it must not be blindly repeated.
+- `unknown`: the send may have reached the server and there was no conclusive response. The later observed state may be shown, but do not attribute the change to this CLI without evidence.
+- `failed`: confirmed rejection; include field information when available.
+- `noop`: the intent is already satisfied per the described rules, without sending POST.
 
-## 10. Definición precisa de progreso
+“Exactly-once” semantics are not guaranteed. Do not use an invented idempotency header: without endpoint support it does not prevent duplicates. On a comment/worklog timeout, show uncertain state and allow inspecting activity; do not resend automatically.
 
-La palabra “progreso” puede significar varias cosas. La CLI debe presentar métricas con nombre y denominador; no convertir automáticamente En progreso en 50% ni asignar porcentajes arbitrarios a estados.
+Save only minimal metadata of recent actions, per profile: local UUID, key, action, time, and result. Never token, description, or comment body. Allow disabling this registry; default TTL seven days. The local UUID aids diagnosis, but is not a server transaction identifier.
 
-| Indicador | Cálculo o fuente | Presentación |
+## 10. Precise progress definition
+
+The word “progress” can mean several things. The CLI must present metrics with numerator and denominator; do not automatically convert In progress to 50% or assign arbitrary percentages to states.
+
+| Indicator | Calculation or source | Presentation |
 | --- | --- | --- |
-| Estado | Estado y categoría devueltos por Jira | `En revisión · In progress` |
-| Resolución | Valor actual del campo | `Fixed`, `Cancelled` o `Sin resolución` |
-| Subtareas | Completadas en categoría Done / subtareas visibles consultadas | `2 de 4 subtareas · 50%` |
-| Tiempo registrado | Segundos reportados por Jira | `3 h registradas` |
-| Tiempo restante | Estimación restante reportada | `2 h estimadas restantes` |
-| Consumo de estimación | Tiempo registrado / estimación original, si esta es positiva | `150% de estimación consumida`, sin limitar a 100 |
-| Actualización | Fecha `updated` | `Actualizado hace 2 días` |
-| Tiempo en estado | Historial de cambios de estado consultado completamente | `En este estado desde ...`; desconocido si no se puede determinar |
-| Vencimiento | Fecha local de vencimiento y zona configurada | `Vence hoy` o `Vencido hace 2 días` |
+| State | State and category returned by Jira | `In review · In progress` |
+| Resolution | Current field value | `Fixed`, `Cancelled`, or `No resolution` |
+| Subtasks | Done category completed / queried visible subtasks | `2 of 4 subtasks · 50%` |
+| Logged time | Seconds reported by Jira | `3 h logged` |
+| Remaining time | Reported remaining estimate | `2 h estimated remaining` |
+| Estimate consumption | Logged time / original estimate, if positive | `150% of estimate consumed`, not capped at 100 |
+| Updated | `updated` date | `Updated 2 days ago` |
+| Time in state | Fully queried state change history | `In this state since ...`; unknown if it cannot be determined |
+| Due date | Local due date and configured timezone | `Due today` or `Overdue 2 days ago` |
 
-Reglas adicionales:
+Additional rules:
 
-1. Cero subtareas significa `Sin subtareas`, no 0% ni 100%.
-2. Solo presentar porcentaje de subtareas cuando se conozca el denominador del conjunto visible. Si faltan páginas, mostrar conteos parciales y omitir porcentaje global.
-3. Aclarar que se consideran issues visibles para la cuenta; no prometer detectar elementos ocultos por seguridad.
-4. Subtareas completadas incluyen cualquier resolución dentro de Done. Mostrar desglose de resolución si se necesita distinguir entregadas de canceladas.
-5. Un issue padre Done con subtareas abiertas muestra ambas cosas; no altera el workflow.
-6. No sumar simultáneamente valores agregados de tiempo del padre y tiempos individuales de hijos.
-7. Story points no equivalen a tiempo ni son un porcentaje de avance. Si se añaden, descubrir el campo por configuración validada, no hardcodear `customfield_10016`.
-8. Las fechas de vencimiento sin hora se comparan como fecha local; no convertirlas arbitrariamente a medianoche UTC.
+1. Zero subtasks means `No subtasks`, not 0% or 100%.
+2. Only show subtask percentage when the denominator of the visible set is known. If pages are missing, show partial counts and omit global percentage.
+3. Clarify that issues visible to the account are considered; do not promise to detect items hidden by security.
+4. Completed subtasks include any resolution within Done. Show resolution breakdown if needed to distinguish delivered from canceled.
+5. A parent Done with open subtasks shows both; it does not alter the workflow.
+6. Do not simultaneously sum aggregated parent time values and individual child times.
+7. Story points are not time and are not a progress percentage. If added, discover the field via validated configuration, do not hardcode `customfield_10016`.
+8. Due dates without a time are compared as local date; do not arbitrarily convert them to midnight UTC.
 
-`summary` devuelve conteos por categoría y, opcionalmente, fracción completada de una población definida. Como `mine` excluye completados por defecto, un porcentaje de completitud requiere `--include-done` y alcance apropiado; la interfaz no mostrará una barra engañosa sobre solo pendientes. Un ejemplo válido es un sprint específico o un proyecto/tipo definido.
+`summary` returns counts by category and, optionally, completed fraction of a defined population. Since `mine` excludes completed by default, a completeness percentage requires `--include-done` and appropriate scope; the interface will not show a misleading bar over just pending items. A valid example is a specific sprint or defined project/type.
 
-Cada resumen incluye consulta o descripción del alcance, fecha de actualización, número procesado, indicador `complete` y método de medición. No usar un conteo aproximado como denominador exacto. Una consulta truncada puede producir `7 completados de 20 cargados; total desconocido`, sin porcentaje global.
+Each summary includes the query or scope description, update date, number processed, `complete` indicator, and measurement method. Do not use an approximate count as an exact denominator. A truncated query may produce `7 completed of 20 loaded; total unknown`, with no global percentage.
 
-## 11. URL, navegador e integración del sistema
+## 11. URL, browser, and system integration
 
-Construir URL como `site_url` más `/browse/{key}`, conservando el context path cuando exista. No utilizar `api.atlassian.com/ex/jira/...` para enlaces humanos. Validar la clave y escapar segmentos de ruta mediante `net/url`.
+Build URL as `site_url` plus `/browse/{key}`, preserving context path when it exists. Do not use `api.atlassian.com/ex/jira/...` for human links. Validate the key and escape path segments using `net/url`.
 
-`jflow link APP-123` funciona sin red si el sitio está configurado. Escribir solo la URL en modo normal facilita pipes. `--format json` devuelve un objeto con `key` y `url`. No garantizar que el usuario tenga acceso sin consultar Jira.
+`jflow link APP-123` works without network if the site is configured. In normal mode write only the URL to ease pipes. `--format json` returns an object with `key` and `url`. It does not guarantee the user has access without querying Jira.
 
-`jflow open` llama `/usr/bin/open` en macOS y `xdg-open` en Linux con argumentos separados. No usar `sh -c`, concatenación de shell ni ejecutar el texto del issue. Si no hay entorno gráfico o lanzador, informar el motivo y mostrar la URL; devolver código de capacidad no disponible.
+`jflow open` calls `/usr/bin/open` on macOS and `xdg-open` on Linux with separate arguments. Do not use `sh -c`, shell concatenation, or execute issue text. If there is no graphical environment or launcher, explain the reason and show the URL; return capability unavailable code.
 
-Una salida exitosa significa que se inició el lanzador, no que el navegador cargó o autenticó la página. Configuración opcional de navegador/editor mediante arrays de ejecutable y argumentos, nunca una cadena de shell evaluada.
+A successful launch means the launcher process started, not that the browser loaded or authenticated the page. Optional browser/editor configuration via arrays of executable and arguments, never a shell string to evaluate.
 
-## 12. Caché, privacidad y refresco
+## 12. Cache, privacy, and refresh
 
-En la primera versión la caché es de memoria por proceso. Permitir persistencia mediante `cache.persist=true` para uso offline; explicar que almacena contenido de Jira en el equipo. El modo offline falla con mensaje claro si nunca se habilitó o no existe esa entrada.
+In the first version the cache is per-process memory. Allow persistence with `cache.persist=true` for offline use; explain that it stores Jira content on the machine. Offline mode fails with a clear message if it was never enabled or the entry does not exist.
 
-TTL propuestos: listados 60 segundos, detalles 30 segundos, identidad 15 minutos y metadatos de campos 1 hora. Las transiciones se obtienen frescas al preparar/aplicar acciones. La TUI permite refresco manual y polling opcional cada 60 segundos, sin solicitudes superpuestas ni daemon oculto.
+Proposed TTLs: listings 60 seconds, details 30 seconds, identity 15 minutes, and field metadata 1 hour. Transitions are fetched fresh when preparing/applying actions. The TUI allows manual refresh and optional polling every 60 seconds, without overlapping requests or a hidden daemon.
 
-Clave de caché: proveedor, origen/base autenticada, perfil, identidad, consulta normalizada, campos y versión del esquema. No compartir por clave del issue únicamente. Invalidar al cambiar credencial, usuario o sitio. Una renovación de credencial incrementa una generación local de caché.
+Cache key: provider, authenticated origin/base, profile, identity, normalized query, fields, and schema version. Do not share by issue key alone. Invalidate on credential, user, or site change. A credential renewal increments a local cache generation.
 
-La persistencia opcional guarda archivos JSON con límite total de 25 MB, máximo de 1.000 detalles y vencimiento máximo de siete días. Usar nombres derivados de hash, no resúmenes de issues. Excluir cuerpos de comentarios/descripciones de la persistencia por defecto; una opción adicional puede habilitarlos. La configuración de caché no debe contener tokens.
+Optional persistence stores JSON files with total limit 25 MB, maximum 1,000 details, and maximum seven-day expiration. Use names derived from a hash, not issue summaries. Exclude comment/description bodies from default persistence; an additional option may enable them. Cache configuration must not contain tokens.
 
-Implementar `jflow cache status` y `jflow cache clear --profile trabajo`; documentar exactamente qué archivos controla la aplicación. Los resultados locales siempre incluyen hora de captura y `stale`. Un 401/403 online no se convierte silenciosamente en éxito usando caché antigua.
+Implement `jflow cache status` and `jflow cache clear --profile work`; document exactly which files the application controls. Local results always include capture time and `stale`. An online 401/403 is not silently turned into success using stale cache.
 
-Sanitizar texto remoto antes de renderizar: quitar escapes ANSI, controles de terminal y OSC provenientes de resúmenes, comentarios y nombres. JSON puede conservar texto como datos escapados, sin secuencias de control literales. Las imágenes y adjuntos no se descargan automáticamente.
+Sanitize remote text before rendering: remove ANSI escapes, terminal controls, and OSC from summaries, comments, and names. JSON may keep text as escaped data without literal control sequences. Images and attachments are not downloaded automatically.
 
-Logs sin headers de autenticación, cookies, tokens, cuerpos completos ni JQL privado por defecto. No incluir telemetría en el núcleo. Las pruebas usan datos sintéticos y ningún secreto se almacena en fixtures, snapshots o repositorio.
+Logs without authentication headers, cookies, tokens, full bodies, or private JQL by default. No telemetry in the core. Tests use synthetic data and no secret is stored in fixtures, snapshots, or the repository.
 
-## 13. Salida para scripts y errores
+## 13. Script output and errors
 
-Stdout se reserva para el resultado; stderr para diagnóstico y progreso. En salida redirigida, sin ANSI, spinners ni paginador. `--format json` emite exactamente un documento JSON por invocación, incluso si hay error. Para JSON, errores estructurados van en ese documento de stdout y el código de salida sigue siendo no cero; stderr puede contener diagnóstico adicional redactado.
+Stdout is reserved for the result; stderr for diagnostics and progress. With redirected output, no ANSI, spinners, or pager. `--format json` emits exactly one JSON document per invocation, even on error. For JSON, structured errors go in that stdout document and the exit code remains non-zero; stderr may contain additional redacted diagnostics.
 
-Contrato de búsqueda propuesto:
+Proposed search contract:
 
 ```json
 {
@@ -665,287 +665,287 @@ Contrato de búsqueda propuesto:
       {
         "id": "100123",
         "key": "APP-123",
-        "summary": "Mejorar autenticación",
-        "status": {"id": "3", "name": "En progreso", "category": "in-progress"},
+        "summary": "Improve authentication",
+        "status": {"id": "3", "name": "In progress", "category": "in-progress"},
         "resolution": null,
-        "url": "https://empresa.atlassian.net/browse/APP-123"
+        "url": "https://company.atlassian.net/browse/APP-123"
       }
     ]
   },
   "meta": {
-    "profile": "trabajo",
+    "profile": "work",
     "fetched_at": "2026-09-06T16:32:00Z",
     "source": "network",
     "stale": false,
     "complete": false,
     "returned": 1,
-    "next_page_token": "cursor-opaco-de-ejemplo"
+    "next_page_token": "example-opaque-cursor"
   },
   "warnings": [],
   "error": null
 }
 ```
 
-`ok=true, complete=false` es normal cuando el usuario solicitó una página o un límite. Si se pidió `--all` y un fallo o límite protector impide completarlo, usar error parcial y código 10 conservando datos disponibles.
+`ok=true, complete=false` is normal when the user requested a page or a limit. If `--all` was requested and a failure or safety limit prevents completion, use partial error and code 10 while preserving available data.
 
-Contrato de error propuesto:
+Proposed error contract:
 
 ```json
 {
   "schema_version": 1,
   "ok": false,
   "data": null,
-  "meta": {"profile": "trabajo"},
+  "meta": {"profile": "work"},
   "warnings": [],
   "error": {
     "code": "transition_ambiguous",
-    "message": "Hay más de una transición posible para completar APP-123.",
+    "message": "More than one transition is possible to complete APP-123.",
     "retryable": false,
     "details": {"candidate_transition_ids": ["31", "41"]}
   }
 }
 ```
 
-Para mutaciones, `data.result` usa los estados de 9.5 y presenta estado anterior, observado y transición. `accepted_unverified`/`unknown` tienen `ok=false` y código 9, aunque exista aceptación inicial; el mensaje distingue ese caso de un rechazo. Mantener `null` para valores desconocidos, tiempos RFC3339 y campos numéricos con unidades explícitas.
+For mutations, `data.result` uses the states from 9.5 and presents previous state, observed state, and transition. `accepted_unverified`/`unknown` have `ok=false` and code 9, even if there was initial acceptance; the message distinguishes that case from a rejection. Keep `null` for unknown values, RFC3339 times, and numeric fields with explicit units.
 
-| Salida | Significado |
+| Exit | Meaning |
 | --- | --- |
-| 0 | Éxito, lista vacía válida o noop informado |
-| 1 | Error interno no clasificado |
-| 2 | Argumentos/configuración inválidos |
-| 3 | Autenticación ausente o rechazada |
-| 4 | Permisos insuficientes |
-| 5 | Recurso no encontrado o no visible |
-| 6 | Ambigüedad, campos faltantes o validación rechazada |
-| 7 | Conflicto detectado al revalidar |
-| 8 | Red/límite de solicitudes antes de una mutación, o lectura fallida |
-| 9 | Escritura aceptada sin verificar o de resultado incierto |
-| 10 | Resultado parcial solicitado como completo, o lote parcial futuro |
-| 11 | Capacidad no disponible: navegador, modo offline sin datos, proveedor incompatible |
-| 130 | Cancelación del usuario |
+| 0 | Success, valid empty list, or reported noop |
+| 1 | Unclassified internal error |
+| 2 | Invalid arguments/configuration |
+| 3 | Authentication missing or rejected |
+| 4 | Insufficient permissions |
+| 5 | Resource not found or not visible |
+| 6 | Ambiguity, missing fields, or validation rejected |
+| 7 | Conflict detected on revalidation |
+| 8 | Network/rate limit before mutation, or read failed |
+| 9 | Write accepted unverified or result uncertain |
+| 10 | Result requested as complete but incomplete, or future partial batch |
+| 11 | Capability unavailable: browser, offline without data, incompatible provider |
+| 130 | User cancellation |
 
-La cancelación tras un envío no cancela necesariamente el cambio remoto: imprimir que el resultado puede ser incierto antes de salir. En operaciones por lotes futuras, detener envíos nuevos y conservar resultados ya recibidos.
+Cancellation after sending does not necessarily cancel the remote change: print that the result may be uncertain before exiting. In future batch operations, stop new sends and keep already received results.
 
-Ejemplos de automatización:
+Automation examples:
 
 ```bash
 jflow mine --format json | jq -r '.data.issues[].key'
 jflow search --jql 'project = APP AND statusCategory != Done' --all --format json
 jflow transition APP-123 --id 21 --yes --no-input --format json
-jflow link APP-123 | pbcopy  # Solo macOS; no necesario para usar la CLI.
+jflow link APP-123 | pbcopy  # macOS only; not required to use the CLI.
 ```
 
-Versionar el esquema de salida por separado de la versión del binario. En v1, permitir campos nuevos y preservar nombres/tipos existentes; cambios incompatibles requieren nueva versión de esquema y guía de migración.
+Version the output schema separately from the binary version. In v1, allow new fields and preserve existing names/types; incompatible changes require a new schema version and migration guide.
 
-## 14. Diseño para ampliar funciones
+## 14. Design to extend features
 
-### 14.1 Registro de acciones interno
+### 14.1 Internal action registry
 
-Cada acción declara un ID estable, nombre visible, intención, si muta Jira, capacidades requeridas y un preparador/ejecutor. Ejemplos de IDs: `issue.start`, `issue.done`, `issue.comment.add`.
+Each action declares a stable ID, visible name, intent, whether it mutates Jira, required capabilities, and a preparer/executor. Example IDs: `issue.start`, `issue.done`, `issue.comment.add`.
 
-El registro permite a la TUI construir una paleta contextual y a la CLI exponer comandos, manteniendo los casos de uso compartidos. Los formularios son metadatos de entrada; no incrustar componentes Bubble Tea en el dominio. Validar IDs duplicados al arrancar.
+The registry lets the TUI build a contextual palette and the CLI expose commands while keeping use cases shared. Forms are input metadata; Bubble Tea components are not embedded in the domain. Validate duplicate IDs at startup.
 
-Para añadir una función:
+To add a feature:
 
-1. Definir el caso de uso y su contrato de entrada/salida.
-2. Añadir un puerto pequeño si falta una capacidad del proveedor.
-3. Implementar el adaptador y fixtures HTTP.
-4. Registrar la acción y exponer el comando.
-5. Incorporarla a la TUI si es útil de forma interactiva.
-6. Actualizar ayuda, contrato JSON, permisos y pruebas.
+1. Define the use case and its input/output contract.
+2. Add a small port if a provider capability is missing.
+3. Implement adapter and HTTP fixtures.
+4. Register the action and expose the command.
+5. Incorporate into the TUI if useful interactively.
+6. Update help, JSON contract, permissions, and tests.
 
-No añadir reflexión ni un framework de plugins para el MVP. Tampoco usar el paquete `plugin` de Go como ABI distribuida; un registro compilado es suficiente para las primeras entregas.
+Do not add reflection or a plugin framework for the MVP. Also do not use Go's `plugin` package as a distributed ABI; a compiled registry is enough for the first deliveries.
 
-### 14.2 Capacidades de proveedor
+### 14.2 Provider capabilities
 
-`Capabilities` expresa soporte del adaptador, por ejemplo comentarios, edición, sprints o worklogs. Diferenciar `supported`, `unsupported` y `unknown` cuando no se haya comprobado. Las capacidades no garantizan permisos sobre un issue concreto; una respuesta 403 afecta al contexto comprobado y no debe deshabilitar globalmente todo el perfil.
+`Capabilities` expresses adapter support, e.g. comments, editing, sprints, or worklogs. Distinguish `supported`, `unsupported`, and `unknown` when not tested. Capabilities do not guarantee permissions on a specific issue; a 403 response affects the tested context and must not globally disable the whole profile.
 
-Jira Data Center requerirá su propio adaptador: autenticación PAT según versión, rutas y paginación correspondientes, identidades diferentes de `accountId`, texto enriquecido y metadatos propios. No implementar un fallback automático de Cloud v3 a Data Center v2 tras un 404. La disponibilidad de PAT y API debe verificarse en la versión desplegada. Fuente: [PAT Data Center](https://developer.atlassian.com/server/jira/platform/personal-access-token/).
+Jira Data Center will require its own adapter: PAT authentication by version, corresponding routes and pagination, identities different from `accountId`, rich text, and own metadata. Do not implement an automatic fallback from Cloud v3 to Data Center v2 after a 404. PAT and API availability must be checked in the deployed version. Source: [Data Center PAT](https://developer.atlassian.com/server/jira/platform/personal-access-token/).
 
-### 14.3 Extensiones externas futuras
+### 14.3 Future external extensions
 
-Si el uso real justifica extensiones, usar procesos explícitamente registrados por ruta con JSON versionado por stdin/stdout. La invocación será `jflow extension run NOMBRE ...`; no ejecutar binarios desconocidos por una errata en un comando. Tiempo máximo, tamaño de respuesta y códigos de salida definidos.
+If real use justifies extensions, use explicitly registered processes with versioned JSON over stdin/stdout. Invocation will be `jflow extension run NAME ...`; do not execute unknown binaries because of a typo in a command. Define maximum time, response size, and exit codes.
 
-La extensión no recibe tokens en el entorno por defecto. Una extensión que necesite datos puede consumir salida JSON explícita de la CLI o solicitar capacidades a través de un protocolo posterior. No prometer sandboxing de procesos locales: una extensión instalada ejecuta código con los permisos del usuario.
+The extension does not receive tokens in the environment by default. An extension that needs data can consume explicit JSON output from the CLI or request capabilities through a later protocol. Do not promise sandboxing of local processes: an installed extension runs code with the user's permissions.
 
-## 15. Estrategia de verificación
+## 15. Verification strategy
 
-### 15.1 Pruebas unitarias significativas
+### 15.1 Meaningful unit tests
 
-- Constructor JQL: comillas, caracteres especiales, categorías, filtros contradictorios y orden estable.
-- Resolver de workflow: regla válida/inválida, dos destinos Done, close distinto de done, noop y transición de bucle explícita.
-- Progreso: denominador cero, datos parciales, cancelados, estimación ausente y consumo superior al 100%.
-- Mapeo Cloud: categorías desconocidas, usuario ausente, fechas y campos personalizados faltantes.
-- ADF: listas/código, nodos desconocidos, texto plano de ida y sanitización ANSI/OSC.
-- Configuración: precedencia, migraciones, versión futura y aislamiento entre perfiles.
-- Serialización JSON: contratos públicos y campos nulos, no snapshots de estructuras internas completas.
+- JQL constructor: quotes, special characters, categories, and stable ordering.
+- Workflow resolver: valid/invalid rule, two Done destinations, close distinct from done, noop, and explicit loop transition.
+- Progress: zero denominator, partial data, canceled, missing estimate, and consumption above 100%.
+- Cloud mapping: unknown categories, missing user, dates, and missing custom fields.
+- ADF: lists/code, unknown nodes, outbound plain text, and ANSI/OSC sanitization.
+- Configuration: precedence, migrations, future version, and isolation between profiles.
+- JSON serialization: public contracts and null fields, not full snapshots of internal structures.
 
-### 15.2 Pruebas de integración con `httptest`
+### 15.2 Integration tests with `httptest`
 
-Casos obligatorios:
+Mandatory cases:
 
-| Caso | Evidencia esperada |
+| Case | Expected evidence |
 | --- | --- |
-| Token con scopes | Base gateway correcta; URL navegable conserva sitio |
-| Token sin scopes | Base del sitio; cabecera Basic válida y nunca registrada |
-| Paginación con cursor | Recupera páginas, conserva filtros y detecta cursor repetido |
-| 429 con Retry-After | Espera mediante reloj falso o termina por plazo; sin espera real larga |
-| Transición con campo requerido | No hay POST si falta valor; payload válido al completarlo |
-| Dos transiciones Done | No se envía nada en modo no interactivo sin elección |
-| Cambio entre vista previa y envío | Se invalida la preparación y no se aplica la antigua |
-| Timeout después de envío | No duplica POST; resultado unknown y consulta posterior |
-| 204 seguido de fallo de lectura | Resultado accepted_unverified; no éxito confirmado |
-| Automatización mueve nuevamente el issue | Muestra estado observado y diferencia de destino |
-| 401, 403 y 404 | Códigos distintos, sin fallback engañoso a caché |
-| Redirect a otro origen | La credencial no alcanza el destino |
-| Lectura parcial | Se mantienen elementos obtenidos y marca de incompletitud |
+| Scoped token | Correct gateway base; browsable URL keeps site |
+| Unscoped token | Site base; valid Basic header and never logged |
+| Cursor pagination | Recovers pages, keeps filters, and detects repeated cursor |
+| 429 with Retry-After | Waits via fake clock or ends by deadline; no long real wait |
+| Transition with required field | No POST if value missing; valid payload when completed |
+| Two Done transitions | Nothing sent in non-interactive mode without choice |
+| Change between preview and send | Preparation invalidated and old one not applied |
+| Timeout after send | Does not duplicate POST; result unknown and later query |
+| 204 followed by read failure | Result accepted_unverified; not confirmed success |
+| Automation moves issue again | Shows observed state and destination difference |
+| 401, 403, and 404 | Distinct codes, no misleading cache fallback |
+| Redirect to another origin | Credential does not reach the destination |
+| Partial read | Keeps obtained items and marks incompleteness |
 
-### 15.3 CLI, TUI y sistemas operativos
+### 15.3 CLI, TUI, and operating systems
 
-Ejecutar el binario desde pruebas con entradas y salidas controladas. Confirmar JSON parseable, stderr separado, comportamiento sin TTY, ayuda/completado y códigos de salida. Usar mocks de Browser/SecretStore en pruebas habituales.
+Run the binary from tests with controlled inputs and outputs. Confirm parseable JSON, separate stderr, behavior without TTY, help/completion, and exit codes. Use mocks for Browser/SecretStore in common tests.
 
-Pruebas TUI: navegación, foco, formulario, cancelación, resize, respuesta HTTP atrasada y tema sin color. Los snapshots de pantallas deben usar reloj y ancho fijos. Añadir una prueba con pseudo-terminal para comprobar restauración de cursor/eco tras salir; no depender solo de snapshots.
+TUI tests: navigation, focus, form, cancellation, resize, late HTTP response, and theme without color. Screen snapshots must use fixed clock and width. Add a pseudo-terminal test to verify cursor/echo restoration after exit; do not rely only on snapshots.
 
-Pruebas manuales mínimas de release: Linux con escritorio y sesión SSH; macOS con Terminal/iTerm2; terminal estrecha y `TERM=dumb`; keyring disponible/bloqueado/ausente; apertura de navegador; Unicode y texto largo. Construir arm64 no sustituye probar el binario arm64: documentar qué combinaciones fueron ejecutadas realmente.
+Minimum release manual tests: Linux with desktop and SSH session; macOS with Terminal/iTerm2; narrow terminal and `TERM=dumb`; keyring available/locked/absent; browser opening; Unicode and long text. Building arm64 does not substitute for running the arm64 binary: document which combinations were actually executed.
 
-### 15.4 Validación contra Jira real
+### 15.4 Validation against real Jira
 
-Antes de etiquetar v1, usar un proyecto de pruebas con permiso explícito para crear/cambiar issues de prueba. Preparar al menos: un issue normal, uno con campos obligatorios, uno con dos transiciones a Done, uno cerrado y un padre con subtareas.
+Before tagging v1, use a test project with explicit permission to create/change test issues. Prepare at least: a normal issue, one with required fields, one with two transitions to Done, one closed, and a parent with subtasks.
 
-Comprobar login, asignados a mí, lectura, enlace, inicio, finalización, cierre mapeado y confirmación del estado en Jira web. No usar issues de producción como pruebas. Las credenciales y cuerpos reales no deben almacenarse como fixtures. Limpiar solo los recursos de prueba que se hayan autorizado para ello.
+Check login, assigned to me, reading, linking, starting, finishing, mapped closing, and state confirmation in Jira web. Do not use production issues as tests. Real credentials and bodies must not be stored as fixtures. Clean only the test resources that have been authorized for cleanup.
 
-Si no hay un sitio de pruebas, se puede entregar una versión candidata con integración simulada; debe declararse que no se ha validado con un tenant real y no marcar ese criterio como cumplido.
+If there is no test site, a candidate release with simulated integration may be delivered; it must be declared that it has not been validated with a real tenant and that criterion must not be marked as met.
 
-## 16. Plan de trabajo por fases
+## 16. Work plan by phases
 
-Estimaciones orientativas en días laborables para una persona familiarizada con Go; no son compromiso de calendario. Incluyen implementación, pruebas y documentación por fase. El trabajo puede organizarse como PRs sucesivos; no se requiere delegación entre agentes para seguir este plan.
+Orientative estimates in working days for one person familiar with Go; not a calendar commitment. They include implementation, tests, and documentation per phase. Work can be organized as successive PRs; delegation between agents is not required to follow this plan.
 
-| Fase | Duración estimada | Dependencias | Resultado |
+| Phase | Estimated duration | Dependencies | Result |
 | --- | --- | --- | --- |
-| F0: base técnica | 1–2 días | Ninguna | Repo, versiones, contratos y decisiones fijadas |
-| F1: configuración y acceso | 2–3 días | F0 | Perfiles, secretos, login, me y doctor |
-| F2: lectura CLI | 3–4 días | F1 | mine, search, show, link y open |
-| F3: workflows | 4–6 días | F2 | Transiciones y start/done/close verificables |
-| F4: progreso y scripting | 2–3 días | F2; F3 para resultados de escritura | Métricas, JSON y errores estabilizados |
-| F5: TUI | 4–6 días | F2 y F3; integrar F4 | Interfaz navegable y acciones completas |
-| F6: distribución y aceptación | 3–4 días | F1–F5 | Binarios, documentación y validación real |
-| F7: productividad | 5–8 días | Entrega A | Funciones de Entrega B |
+| F0: technical base | 1–2 days | None | Repo, versions, contracts, and decisions pinned |
+| F1: configuration and access | 2–3 days | F0 | Profiles, secrets, login, me, and doctor |
+| F2: CLI reading | 3–4 days | F1 | mine, search, show, link, and open |
+| F3: workflows | 4–6 days | F2 | Verifiable transitions and start/done/close |
+| F4: progress and scripting | 2–3 days | F2; F3 for write results | Metrics, JSON, and errors stabilized |
+| F5: TUI | 4–6 days | F2 and F3; integrate F4 | Navigable interface and complete actions |
+| F6: distribution and acceptance | 3–4 days | F1–F5 | Binaries, documentation, and real validation |
+| F7: productivity | 5–8 days | Delivery A | Delivery B features |
 
-Entrega A: aproximadamente 19–28 días laborables, 4–6 semanas, sujeto a acceso al tenant y complejidad de workflows. Data Center, OAuth y extensiones se estiman después de una investigación específica y no están incluidos.
+Delivery A: approximately 19–28 working days, 4–6 weeks, subject to tenant access and workflow complexity. Data Center, OAuth, and extensions are estimated after specific investigation and are not included.
 
-### F0. Base técnica y contratos
+### F0. Technical base and contracts
 
-Tareas:
+Tasks:
 
-- Crear repositorio y módulo Go bajo el propietario real; usar nombre local provisional hasta conocerlo.
-- Fijar toolchain, versiones de Cobra/Charm/keyring y herramientas CI; comprobar compilación de las cuatro plataformas.
-- Probar viabilidad de almacenamiento de secretos en macOS sin exponer token en argumentos; registrar decisión.
-- Definir tipos de dominio, errores, puertos iniciales y formato JSON v1.
-- Crear ADRs para Go/CLI+TUI, Cloud-first, transiciones, secretos y caché.
-- Construir fixtures sintéticos y catálogo de endpoints/scopes por comando.
+- Create repository and Go module under the real owner; use provisional local name until known.
+- Pin toolchain, Cobra/Charm/keyring versions, and CI tools; compile for four platforms.
+- Test feasibility of storing secrets on macOS without exposing token in arguments; record decision.
+- Define domain types, errors, initial ports, and JSON v1 format.
+- Create ADRs for Go/CLI+TUI, Cloud-first, transitions, secrets, and cache.
+- Build synthetic fixtures and endpoint/scope catalog by command.
 
-Criterio de salida: `jflow version` y `--help` funcionan; el proyecto compila; CI mínima pasa; ninguna función core depende de una API de TUI.
+Exit criterion: `jflow version` and `--help` work; project compiles; minimal CI passes; no core function depends on a TUI API.
 
-### F1. Configuración, secretos y autenticación
+### F1. Configuration, secrets, and authentication
 
-Tareas:
+Tasks:
 
-- Implementar rutas, esquema JSON, migración y precedencia.
-- Implementar los backends de credenciales y modo de sesión sin persistencia.
-- Crear cliente HTTP con cancelación, URLs derivadas y redacción.
-- Implementar login/logout/status, profile list/use, me y doctor.
-- Cubrir ambos tipos de API token, credencial incorrecta y keyring bloqueado.
+- Implement paths, JSON schema, migration, and precedence.
+- Implement credential backends and session mode without persistence.
+- Create HTTP client with cancellation, derived URLs, and redaction.
+- Implement login/logout/status, profile list/use, me, and doctor.
+- Cover both API token types, wrong credential, and locked keyring.
 
-Criterio de salida: se puede configurar un perfil e identificar la cuenta; el token no aparece en archivos de configuración, salida ni logs; cambiar perfil aísla identidad y caché.
+Exit criterion: a profile can be configured and the account identified; the token does not appear in configuration files, output, or logs; changing profile isolates identity and cache.
 
-### F2. Lectura y enlaces
+### F2. Reading and links
 
-Tareas:
+Tasks:
 
-- Constructor JQL, endpoint mejorado, paginación y selección de campos.
-- Implementar mine/list/search/show; normalizar ADF y secciones paginadas.
-- Implementar link/open y sus adaptadores Linux/macOS.
-- Caché de memoria, `--refresh`, opciones comunes y listado en texto/tabla.
-- Pruebas HTTP y del binario sin TTY.
+- JQL constructor, enhanced endpoint, pagination, and field selection.
+- Implement mine/list/search/show; normalize ADF and paginated sections.
+- Implement link/open and their Linux/macOS adapters.
+- In-memory cache, `--refresh`, common options, and text/table output.
+- HTTP and binary tests without TTY.
 
-Criterio de salida: el usuario consulta sus pendientes, filtra, revisa un issue y abre su URL; no hay solicitudes extra por cada fila; los resultados truncados están identificados.
+Exit criterion: the user queries their pending items, filters, reviews an issue, and opens its URL; there are no extra requests per row; truncated results are identified.
 
-### F3. Motor de workflows y mutaciones
+### F3. Workflow engine and mutations
 
-Tareas:
+Tasks:
 
-- Obtener transiciones y metadatos de campos; formularios básicos.
-- Implementar prepare/confirm/revalidate/apply/verify.
-- Crear reglas mapeadas, commands transitions/transition/start/done/close y `workflow map`.
-- Soportar `--transition-id`, `--fields-file`, `--yes`, `--no-input` y `--dry-run`.
-- Cubrir ambigüedad, validación, carreras y respuesta incierta sin duplicar envío.
+- Get transitions and field metadata; basic forms.
+- Implement prepare/confirm/revalidate/apply/verify.
+- Create mapped rules, commands transitions/transition/start/done/close, and `workflow map`.
+- Support `--transition-id`, `--fields-file`, `--yes`, `--no-input`, and `--dry-run`.
+- Cover ambiguity, validation, races, and uncertain response without duplicating send.
 
-Criterio de salida: iniciar/completar/cerrar funciona con nombres arbitrarios y campos exigidos; no hay IDs globales hardcodeados ni transiciones automáticas de varios pasos.
+Exit criterion: start/complete/close works with arbitrary names and required fields; no global IDs hardcoded nor automatic multi-step transitions.
 
-### F4. Progreso y contratos de automatización
+### F4. Progress and automation contracts
 
-Tareas:
+Tasks:
 
-- Implementar progress/summary con indicadores definidos y alcance explícito.
-- Completar JSON v1 y códigos de salida para lecturas y mutaciones.
-- Añadir caché persistente opt-in, comandos cache y modo offline.
-- Documentar pipelines y métricas desconocidas/parciales.
+- Implement progress/summary with defined indicators and explicit scope.
+- Complete JSON v1 and exit codes for reads and mutations.
+- Add opt-in persistent cache, cache commands, and offline mode.
+- Document pipelines and unknown/partial metrics.
 
-Criterio de salida: un script puede procesar consultas y distinguir éxito, parcialidad e incertidumbre; ninguna barra inventa avance a partir del nombre del estado.
+Exit criterion: a script can process queries and distinguish success, partiality, and uncertainty; no bar invents progress from the state name.
 
-### F5. Interfaz interactiva
+### F5. Interactive interface
 
-Tareas:
+Tasks:
 
-- Modelo principal, listado/detalle, búsqueda, paginación, formularios y diálogos.
-- Conectar exclusivamente a casos de uso existentes; no duplicar el resolver de workflows.
-- Incorporar estilos, tamaños, ayuda, foco, cancelación y controles de respuesta obsoleta.
-- Implementar refresh y feedback posterior a acciones.
-- Validar pseudo-terminal y experiencia manual en ambos sistemas.
+- Main model, list/detail, search, pagination, forms, and dialogs.
+- Connect only to existing use cases; do not duplicate the workflow resolver.
+- Add styles, sizes, help, focus, cancellation, and stale-response controls.
+- Implement refresh and post-action feedback.
+- Validate pseudo-terminal and manual experience on both systems.
 
-Criterio de salida: el recorrido consultar → iniciar → revisar → completar → abrir navegador se realiza íntegramente con teclado, con terminal restaurada al salir.
+Exit criterion: the query → start → review → complete → open browser journey is done entirely by keyboard, with terminal restored on exit.
 
-### F6. Distribución y entrega
+### F6. Distribution and delivery
 
-Tareas:
+Tasks:
 
-- Configurar GoReleaser, CI de cuatro artefactos, checksums y changelog.
-- Documentar instalación/desinstalación, keyring, SSH, proxies, perfiles y workflows.
-- Generar ayuda y completado desde Cobra.
-- Ejecutar aceptación en Jira de pruebas y registrar versiones/sistemas probados.
-- Revisar dependencias, licencias y fugas de secretos; resolver defectos core.
+- Configure GoReleaser, four-artifact CI, checksums, and changelog.
+- Document install/uninstall, keyring, SSH, proxies, profiles, and workflows.
+- Generate help and completion from Cobra.
+- Run acceptance in test Jira and record tested versions/systems.
+- Review dependencies, licenses, and secret leaks; resolve core defects.
 
-Criterio de salida: satisfacer la lista de aceptación de la sección 18 y entregar artefactos verificables, no solo código fuente.
+Exit criterion: satisfy the acceptance list in section 18 and deliver verifiable artifacts, not just source code.
 
-### F7. Productividad
+### F7. Productivity
 
-Implementar en orden: comentarios → asignación a mí → edición de campos permitidos → reabrir → vistas/favoritos → tablero personal → sprints → worklogs → contexto Git. Cada función agrega sus pruebas de error/permisos y contrato de salida. No dejar los comandos de Entrega B visibles como si funcionaran antes de implementarlos.
+Implement in order: comments → assign to me → edit allowed fields → reopen → views/favorites → personal board → sprints → worklogs → Git context. Each feature adds its error/permission tests and output contract. Do not leave Delivery B commands visible as if they worked before implementing them.
 
-Para editar, obtener capacidades/metadatos y validar campos; para worklogs, hacer explícita la política de actualización de estimación restante y mostrarla antes del envío. `start` cambia estado, no inicia un reloj. Un cronómetro futuro tendrá estado local independiente y publicará tiempo solo bajo una acción explícita.
+To edit, get capabilities/metadata and validate fields; for worklogs, make explicit the policy for updating remaining estimate and show it before sending. `start` changes state, it does not start a clock. A future stopwatch will have independent local state and will publish time only under an explicit action.
 
-## 17. Distribución, CI y objetivos operativos
+## 17. Distribution, CI, and operational targets
 
-Artefactos: `jflow_<version>_linux_amd64.tar.gz`, `linux_arm64`, `darwin_amd64` y `darwin_arm64`, cada uno con binario, licencia y README de instalación. Generar checksums y, cuando exista infraestructura de firma, firma/procedencia verificable. GoReleaser es la herramienta propuesta para automatizar builds y empaquetado. Fuente: [GoReleaser](https://goreleaser.com/getting-started/).
+Artifacts: `jflow_<version>_linux_amd64.tar.gz`, `linux_arm64`, `darwin_amd64`, and `darwin_arm64`, each with binary, license, and install README. Generate checksums and, when signing infrastructure exists, verifiable signature/provenance. GoReleaser is the proposed tool to automate builds and packaging. Source: [GoReleaser](https://goreleaser.com/getting-started/).
 
-Homebrew tendrá un tap bajo el propietario real del repositorio; no documentar un `brew install` ficticio como ya disponible. Antes de publicar, definir licencia y responsables. Una release pública de macOS debe evaluar firma/notarización y documentar el estado real de Gatekeeper; no recomendar desactivar sus controles como instalación normal.
+Homebrew will have a tap under the real repository owner; do not document a `brew install` as already available. Before publishing, define license and maintainers. A public macOS release must evaluate signing/notarization and document the real Gatekeeper status; do not recommend disabling its controls as normal installation.
 
-La matriz inicial de validación se centrará en Ubuntu LTS y las dos versiones estables más recientes de macOS disponibles al publicar. Registrar versiones y arquitecturas concretas en `compatibility.md`; comprobar los mínimos del toolchain elegido y no prometer soporte de todos los Linux/macOS históricos.
+The initial validation matrix will focus on Ubuntu LTS and the two most recent stable macOS versions available at publish time. Register specific versions and architectures in `compatibility.md`; check the chosen toolchain minimums and do not promise support for all historical Linux/macOS.
 
-CI propuesta:
+Proposed CI:
 
 ```text
-Formato + vet + lint
+Format + vet + lint
         ↓
-Pruebas unitarias/integración + race donde se soporte
+Unit/integration tests + race where supported
         ↓
 Build Linux/macOS × amd64/arm64
         ↓
-Smoke tests en runners disponibles + revisión de contratos JSON
+Smoke tests on available runners + JSON contract review
         ↓
-Tag de release → empaquetado → checksums → publicación autorizada
+Release tag → packaging → checksums → authorized publish
 ```
 
-Comandos de desarrollo que debe implementar el Makefile:
+Makefile development commands to implement:
 
 ```bash
 make fmt-check
@@ -956,70 +956,70 @@ make build
 make release-check
 ```
 
-Base de verificaciones: `go test ./...`, `go vet ./...`, `go test -race ./...` donde esté soportado y escaneo con `govulncheck` fijado a una versión. Fijar acciones CI por commit revisado y dar permisos mínimos a jobs de publicación. Las pruebas habituales no requieren credenciales Jira.
+Verification base: `go test ./...`, `go vet ./...`, `go test -race ./...` where supported, and scan with pinned `govulncheck`. Pin CI actions by reviewed commit and give minimum permissions to publish jobs. Common tests do not require Jira credentials.
 
-Objetivos de rendimiento del producto, a medir y registrar en hardware/fixture conocido:
+Product performance targets, to be measured and recorded on known hardware/fixture:
 
-- `version`/`help`: menos de 150 ms en máquina de desarrollo de referencia.
-- Primera respuesta visual de TUI: menos de 200 ms, mostrando carga si falta red.
-- Navegación sobre 1.000 elementos cargados: latencia de entrada inferior a 50 ms.
-- Lectura inicial de 50 issues: objetivo de menos de 2 s con servidor de prueba de latencia controlada; Jira real puede superar esa cifra.
-- Memoria objetivo: menos de 100 MB con 1.000 issues de listado y un detalle abierto.
+- `version`/`help`: less than 150 ms on reference development machine.
+- First TUI visual response: less than 200 ms, showing loading if network is missing.
+- Navigation over 1,000 loaded items: input latency below 50 ms.
+- Initial read of 50 issues: target less than 2 s with controlled-latency test server; real Jira may exceed this.
+- Memory target: less than 100 MB with 1,000 listing items and one detail open.
 
-Estas cifras son objetivos por verificar, no garantías ni mediciones ya realizadas. Priorizar corrección y cancelación antes de optimizaciones especulativas.
+These figures are targets to verify, not guarantees or already-taken measurements. Prioritize correctness and cancellation over speculative optimization.
 
-## 18. Criterios de aceptación de la primera versión
+## 18. First-version acceptance criteria
 
-La Entrega A solo se considera terminada cuando se cumpla lo siguiente:
+Delivery A is only considered finished when the following are met:
 
-- [ ] Existen binarios Linux y macOS para amd64/arm64, con matriz de ejecución real documentada.
-- [ ] El usuario puede autenticar un perfil y consultar su propia identidad.
-- [ ] Los tokens con scopes y sin scopes usan sus bases correctas.
-- [ ] `mine` devuelve asignados a mí con filtros y paginación correctos.
-- [ ] `show` presenta estado, resolución, descripción y secciones adicionales sin romperse ante campos ausentes.
-- [ ] `progress` distingue datos reales, parciales y desconocidos.
-- [ ] `link` genera URL correcta sin red y `open` funciona o entrega un diagnóstico útil por plataforma.
-- [ ] `start`, `done` y `close` respetan transiciones y reglas de cada workflow.
-- [ ] Una ambigüedad no produce ningún cambio sin resolverla.
-- [ ] Se admiten campos obligatorios comunes y datos explícitos para automatización.
-- [ ] `--dry-run` nunca emite una mutación Jira.
-- [ ] Un timeout después del envío no causa un reintento ciego.
-- [ ] La TUI permite el recorrido principal con teclado y restaura la terminal.
-- [ ] La salida JSON es estable, válida y apta para scripts.
-- [ ] Los secretos no aparecen en configuración, historial propio, argumentos de la CLI ni logs.
-- [ ] Funciona una sesión sin keyring mediante credencial efímera.
-- [ ] Caché y configuración están aisladas por perfil/identidad.
-- [ ] Las pruebas definidas pasan y existe guía de instalación y uso.
-- [ ] Se registra una validación contra Jira de pruebas, o se entrega explícitamente como candidata sin ese criterio cumplido.
+- [ ] Linux and macOS binaries for amd64/arm64 exist, with a documented matrix of real execution.
+- [ ] The user can authenticate a profile and query their own identity.
+- [ ] Scoped and unscoped tokens use their correct bases.
+- [ ] `mine` returns current-user assignments with correct filters and pagination.
+- [ ] `show` presents state, resolution, description, and additional sections without breaking on missing fields.
+- [ ] `progress` distinguishes real, partial, and unknown data.
+- [ ] `link` generates a correct URL without network and `open` works or gives a useful per-platform diagnostic.
+- [ ] `start`, `done`, and `close` respect workflow transitions and rules.
+- [ ] An ambiguity does not produce any change without resolving it.
+- [ ] Common required fields and explicit automation data are supported.
+- [ ] `--dry-run` never emits a Jira mutation.
+- [ ] A timeout after sending does not cause a blind retry.
+- [ ] The TUI allows the main journey by keyboard and restores the terminal.
+- [ ] JSON output is stable, valid, and script-friendly.
+- [ ] Secrets do not appear in configuration, own history, CLI arguments, or logs.
+- [ ] A session without keyring works via ephemeral credential.
+- [ ] Cache and configuration are isolated by profile/identity.
+- [ ] Defined tests pass and there is an install and usage guide.
+- [ ] A validation against test Jira is recorded, or it is explicitly delivered as a candidate without that criterion met.
 
-## 19. Riesgos concretos y decisiones pendientes acotadas
+## 19. Concrete risks and bounded pending decisions
 
-| Riesgo o incógnita | Tratamiento |
+| Risk or unknown | Treatment |
 | --- | --- |
-| Workflow con validadores externos | Conservar formulario, mostrar error servidor y ofrecer abrir navegador |
-| “Cerrar” distinto de “completar” | Resolver por transición/regla; nunca asumir equivalencia |
-| Indexación tardía tras escritura | Verificar detalle, invalidar caché y reconciliar búsquedas cuando corresponda |
-| Token vencido o permisos limitados | Diagnóstico preciso sin solicitar permisos administrativos generales |
-| Terminal/SSH sin portapapeles o navegador | Enlace imprimible y CLI plain como funciones independientes |
-| macOS keyring expone argumento al guardar | Investigar backend en F0 y resolver antes de persistencia pública |
-| Campos personalizados distintos por sitio | Descubrimiento y mapeo explícito, IDs locales al perfil |
-| Tipo de Jira aún desconocido | Cloud como entrega inicial; si el tenant real es Data Center, priorizar su adaptador antes de validar allí |
-| Nombre/licencia/propietario por definir | Usar nombre provisional local; resolver antes de publicación |
+| Workflow with external validators | Keep form, show server error, and offer to open browser |
+| “Close” distinct from “complete” | Resolve via transition/rule; never assume equivalence |
+| Late indexing after writing | Verify detail, invalidate cache, and reconcile searches when appropriate |
+| Expired token or limited permissions | Precise diagnosis without requesting general administrative permissions |
+| Terminal/SSH without clipboard or browser | Printable link and plain CLI as independent functions |
+| macOS keyring exposes argument on save | Investigate backend in F0 and resolve before public persistence |
+| Custom fields differ by site | Explicit discovery and mapping, site-local IDs in profile |
+| Jira type still unknown | Cloud as initial delivery; if real tenant is Data Center, prioritize its adapter before validating there |
+| Name/license/owner to define | Use provisional local name; resolve before publishing |
 
-Ninguna incógnita impide construir el núcleo con fixtures. El agente no debe inventar credenciales, cloud IDs ni permisos para cerrar esas decisiones. Si el Jira objetivo resulta ser Data Center, conservar los casos de uso y sustituir el proveedor planificado; comunicar el impacto en cronograma.
+No unknown prevents building the core with fixtures. The agent must not invent credentials, cloud IDs, or permissions to close those decisions. If the target Jira turns out to be Data Center, preserve the use cases and replace the planned provider; communicate schedule impact.
 
-## 20. Instrucciones de entrega para el agente implementador
+## 20. Delivery instructions for the implementing agent
 
-Comenzar por F0 y avanzar por dependencias. El objetivo de este documento es que las decisiones comunes ya estén fijadas; no requiere volver a preguntar qué lenguaje, interfaz o modelo de comandos usar. Resolver detalles menores con las reglas aquí descritas y registrar cambios de arquitectura mediante ADR.
+Start with F0 and advance by dependencies. The purpose of this document is that common decisions are already fixed; it does not require re-asking which language, interface, or command model to use. Resolve minor details with the rules here and record architecture changes via ADR.
 
-En cada fase entregar código ejecutable, pruebas proporcionadas al riesgo y documentación de uso. Mantener una lista de pendientes con funciones efectivamente disponibles. Una interfaz atractiva con mutaciones simuladas no satisface Entrega A; tampoco la satisface una CLI funcional que omite Linux/macOS o la TUI solicitada.
+In each phase deliver runnable code, tests proportional to risk, and usage documentation. Keep a list of pending items and actually available functions. An attractive interface with simulated mutations does not satisfy Delivery A; nor does a functional CLI that omits Linux/macOS or the requested TUI.
 
-Orden recomendado del primer incremento vertical: `auth login` → `me` → `mine` → `show` → `link/open`. El segundo incremento: `transitions` → preparación → `start` → `done/close` → verificación. Solo entonces completar la TUI sobre esos mismos servicios.
+Recommended order of the first vertical increment: `auth login` → `me` → `mine` → `show` → `link/open`. The second increment: `transitions` → preparation → `start` → `done/close` → verification. Only then complete the TUI on top of those same services.
 
-Al finalizar, entregar repositorio, artefactos de release, guía rápida, configuración de ejemplo sin secretos, informe de pruebas, matriz de compatibilidad y limitaciones observadas. Toda afirmación de compatibilidad con un tenant o sistema debe apoyarse en pruebas registradas.
+At the end, deliver repository, release artifacts, quick-start guide, example configuration without secrets, test report, compatibility matrix, and observed limitations. Every claim of compatibility with a tenant or system must be backed by recorded tests.
 
-## 21. Referencias y mantenimiento del plan
+## 21. References and plan maintenance
 
-Las referencias técnicas están enlazadas junto a la decisión o comportamiento que sustentan. Consultadas el 6 de septiembre de 2026. Revalidar autenticación, endpoints, scopes y versiones antes de iniciar F0 o después de un cambio relevante de Atlassian.
+Technical references are linked next to the decision or behavior they support. Checked on September 6, 2026. Revalidate authentication, endpoints, scopes, and versions before starting F0 or after any relevant Atlassian change.
 
-La arquitectura, valores de TTL, comandos, códigos de salida, pantallas, estimaciones y criterios de aceptación son propuestas de este documento. Las fuentes oficiales respaldan las capacidades de las API/bibliotecas, pero no garantizan que el plan esté implementado ni que un tenant concreto permita todas sus operaciones.
+The architecture, TTL values, commands, exit codes, screens, estimates, and acceptance criteria are proposals of this document. Official sources support the capabilities of the APIs/libraries, but they do not guarantee that the plan has been implemented or that a specific tenant allows all of its operations.

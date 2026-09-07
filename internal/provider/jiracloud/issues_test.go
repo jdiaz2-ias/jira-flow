@@ -80,7 +80,7 @@ func TestShowFieldsADFAndLazySections(t *testing.T) {
 	})
 	s := &Session{client, profile("api-token-unscoped"), ports.NewSecret("token")}
 	d, e := s.GetIssue(context.Background(), domain.IssueRef{Key: "app-123"}, domain.DetailOptions{IncludeDescription: true, IncludeSubtasks: true, IncludeLinks: true})
-	if e != nil || calls != 1 || !d.SubtasksComplete || d.Comments != nil || d.History != nil || !strings.Contains(output.BlocksText(d.Description), "Contenido sintético") {
+	if e != nil || calls != 1 || !d.SubtasksComplete || d.Comments != nil || d.History != nil || !strings.Contains(output.BlocksText(d.Description), "Synthetic content for tests") {
 		t.Fatal(d, e, calls)
 	}
 	if d.Issue.DueDate == nil || d.Issue.Resolution != nil {
@@ -167,7 +167,7 @@ func TestReadRetriesRetryAfterAndRedaction(t *testing.T) {
 	s.Client = client
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if _, e = s.Search(ctx, domain.SearchRequest{JQL: "x", PageSize: 1}); e == nil || !strings.Contains(e.Error(), "esperar") {
+	if _, e = s.Search(ctx, domain.SearchRequest{JQL: "x", PageSize: 1}); e == nil || !strings.Contains(e.Error(), "wait") {
 		t.Fatal(e)
 	}
 }
@@ -194,7 +194,7 @@ func TestADFUnknownNodesLinksAndControls(t *testing.T) {
 	raw := json.RawMessage(`{"type":"doc","content":[{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"\u001b[31mhello\u001b[0m","marks":[{"type":"link","attrs":{"href":"https://example.com"}}]}]}]}]},{"type":"future","content":[{"type":"text","text":"descendant"}]},{"type":"media"},{"type":"inlineCard","attrs":{"url":"javascript:alert(1)"}}]}`)
 	blocks, _ := normalizeADF(raw, func(s string) string { return domain.CleanText(s, true) })
 	text := output.BlocksText(blocks)
-	if !strings.Contains(text, "hello (https://example.com)") || !strings.Contains(text, "descendant") || !strings.Contains(text, "no soportado") || strings.ContainsAny(text, "\x1b") || strings.Contains(text, "javascript") {
+	if !strings.Contains(text, "hello (https://example.com)") || !strings.Contains(text, "descendant") || !strings.Contains(text, "unsupported") || strings.ContainsAny(text, "\x1b") || strings.Contains(text, "javascript") {
 		t.Fatal(text)
 	}
 }

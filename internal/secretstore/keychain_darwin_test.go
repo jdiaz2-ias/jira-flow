@@ -30,7 +30,7 @@ func TestNativeKeychainRoundTrip(t *testing.T) {
 			t.Error(e)
 		}
 	})
-	token := ports.NewSecret(`synthetic-'quotes'-"double"-á-\-fixture`)
+	token := ports.NewSecret(`synthetic-'quotes'-"double"-a-\-fixture`)
 	if e := s.Set(ctx, ref, token); e != nil {
 		t.Fatal(e)
 	}

@@ -42,7 +42,7 @@ func normalizeADF(raw json.RawMessage, clean func(string) string) ([]domain.Bloc
 	}
 	var root adfNode
 	if json.Unmarshal(raw, &root) != nil {
-		return []domain.Block{{Kind: "unsupported", Text: "[contenido no soportado]"}}, []string{"La descripción contiene un formato no soportado."}
+		return []domain.Block{{Kind: "unsupported", Text: "[unsupported content]"}}, []string{"The description contains an unsupported format."}
 	}
 	count := 0
 	truncated := false
@@ -51,7 +51,7 @@ func normalizeADF(raw json.RawMessage, clean func(string) string) ([]domain.Bloc
 		count++
 		if depth > 64 || count > 10000 {
 			truncated = true
-			return domain.Block{Kind: "unsupported", Text: "[contenido truncado]"}
+			return domain.Block{Kind: "unsupported", Text: "[truncated content]"}
 		}
 		b := domain.Block{Kind: n.Type, Text: clean(n.Text), Children: []domain.Block{}}
 		switch n.Type {
@@ -64,7 +64,7 @@ func normalizeADF(raw json.RawMessage, clean func(string) string) ([]domain.Bloc
 			b.Kind = "text"
 			b.Text = clean(n.Attrs.Text)
 			if b.Text == "" {
-				b.Text = "[mención]"
+				b.Text = "[mention]"
 			}
 		case "emoji":
 			b.Kind = "text"
@@ -76,7 +76,7 @@ func normalizeADF(raw json.RawMessage, clean func(string) string) ([]domain.Bloc
 		default:
 			b.Kind = "unsupported"
 			if n.Text == "" && len(n.Content) == 0 {
-				b.Text = "[contenido no soportado]"
+				b.Text = "[unsupported content]"
 			}
 		}
 		for _, mark := range n.Marks {
@@ -96,7 +96,7 @@ func normalizeADF(raw json.RawMessage, clean func(string) string) ([]domain.Bloc
 	blocks := []domain.Block{walk(root, 0)}
 	warnings := []string{}
 	if truncated {
-		warnings = append(warnings, "El contenido ADF excede el límite de profundidad o nodos.")
+		warnings = append(warnings, "ADF content exceeds the depth or node limit.")
 	}
 	return blocks, warnings
 }

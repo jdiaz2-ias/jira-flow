@@ -1,16 +1,16 @@
-# Fixtures sintéticos
+# Synthetic fixtures
 
-Respuestas inventadas para pruebas futuras; nunca exportadas de Jira real. Claves APP, accountId, IDs y URL `example.atlassian.net` no son credenciales ni datos de una cuenta.
+Made-up responses for future tests; never exported from a real Jira. Keys APP, accountId, IDs and URL `example.atlassian.net` are not credentials or data from an account.
 
-| Archivo | Escenario |
+| File | Scenario |
 | --- | --- |
-| myself.json | Identidad personal |
-| search-page-1.json / search-page-2.json | Cursor opaco y última página |
-| issue.json | Estado y descripción ADF |
-| transitions.json | Iniciar y resolver con campo obligatorio |
-| transitions-ambiguous.json | Dos destinos Done, incluido Cancelar |
-| transition-required-error.json | Rechazo por resolución faltante |
-| authentication-error.json | Autenticación fallida |
-| rate-limit.json | Cuerpo ilustrativo de 429 |
+| myself.json | Personal identity |
+| search-page-1.json / search-page-2.json | Opaque cursor and last page |
+| issue.json | Status and ADF description |
+| transitions.json | Start and resolve with required field |
+| transitions-ambiguous.json | Two Done destinations, including Cancel |
+| transition-required-error.json | Rejected because resolution is missing |
+| authentication-error.json | Failed authentication |
+| rate-limit.json | Illustrative 429 body |
 
-El servidor httptest de F1/F2 añadirá códigos/cabeceras: `Retry-After: 2` para rate-limit y HTTP 204 sin cuerpo para transición aceptada. Estos fixtures no sustituyen validar el contrato real del proveedor.
+The F1/F2 httptest server will add codes/headers: `Retry-After: 2` for rate-limit and HTTP 204 with no body for accepted transition. These fixtures do not replace validating the real provider contract.

@@ -57,7 +57,7 @@ func (a Access) selected(name, email string) (string, config.Profile, error) {
 }
 func (a Access) Login(ctx context.Context, name string, p config.Profile, token ports.Secret, persist bool) (Identity, error) {
 	if !config.ValidName(name) {
-		return Identity{}, problem(domain.InvalidInput, "El perfil requiere un nombre de hasta 64 letras, números, guiones o guiones bajos.")
+		return Identity{}, problem(domain.InvalidInput, "Profile name must be up to 64 letters, numbers, hyphens or underscores.")
 	}
 	if err := p.Validate(); err != nil {
 		return Identity{}, err
@@ -72,7 +72,7 @@ func (a Access) Login(ctx context.Context, name string, p config.Profile, token 
 	if persist {
 		var b [16]byte
 		if _, err := rand.Read(b[:]); err != nil {
-			return Identity{}, problem(domain.Internal, "No se pudo generar la referencia de credencial.")
+			return Identity{}, problem(domain.Internal, "Could not generate credential reference.")
 		}
 		p.Auth.CredentialRef = hex.EncodeToString(b[:])
 	}
@@ -110,7 +110,7 @@ func (a Access) Login(ctx context.Context, name string, p config.Profile, token 
 	// cleanup failure keep its opaque reference so logout can retry removal.
 	if previousRef != "" {
 		if err := a.Secrets.Delete(ctx, ports.CredentialRef(previousRef)); err != nil {
-			return Identity{}, problem(domain.Authentication, "El perfil se guardó, pero no se pudo eliminar la credencial anterior. Desbloquea el llavero y ejecuta auth logout para reintentar.")
+			return Identity{}, problem(domain.Authentication, "Profile saved, but the previous credential could not be removed. Unlock the keyring and run auth logout to retry.")
 		}
 		if err := config.Update(ctx, a.Path, func(c *config.Config) error {
 			p, ok := c.Profiles[name]
@@ -140,7 +140,7 @@ func (a Access) credential(ctx context.Context, p config.Profile, explicit ports
 		return ports.NewSecret(v), "environment", nil
 	}
 	if p.Auth.CredentialRef == "" {
-		return ports.Secret{}, "none", problem(domain.Authentication, "No hay credencial guardada; usa JFLOW_TOKEN o --token-stdin.")
+		return ports.Secret{}, "none", problem(domain.Authentication, "No stored credential; use JFLOW_TOKEN or --token-stdin.")
 	}
 	s, err := a.Secrets.Get(ctx, ports.CredentialRef(p.Auth.CredentialRef))
 	return s, "keyring", err
@@ -159,7 +159,7 @@ func (a Access) Me(ctx context.Context, name, email string, token ports.Secret) 
 		return Identity{}, err
 	}
 	if p.AccountID != "" && p.AccountID != user.ID {
-		return Identity{}, problem(domain.Authentication, "La credencial corresponde a otra identidad; ejecuta auth login para actualizar el perfil.")
+		return Identity{}, problem(domain.Authentication, "The credential belongs to another identity; run auth login to update the profile.")
 	}
 	return Identity{n, user.ID, user.DisplayName, p.Auth.CredentialRef != ""}, nil
 }
@@ -189,7 +189,7 @@ func (a Access) Profiles() ([]ProfileInfo, error) {
 func (a Access) Use(ctx context.Context, name string) error {
 	return config.Update(ctx, a.Path, func(c *config.Config) error {
 		if _, ok := c.Profiles[name]; !ok {
-			return problem(domain.InvalidInput, "El perfil no existe.")
+			return problem(domain.InvalidInput, "Profile does not exist.")
 		}
 		c.ActiveProfile = name
 		return nil

@@ -31,14 +31,14 @@ func New(caFile string) (*Client, error) {
 	if caFile != "" {
 		pem, err := os.ReadFile(caFile)
 		if err != nil {
-			return nil, &domain.Error{Kind: domain.InvalidInput, Message: "No se pudo leer la CA corporativa."}
+			return nil, &domain.Error{Kind: domain.InvalidInput, Message: "Could not read the corporate CA."}
 		}
 		pool, err := x509.SystemCertPool()
 		if err != nil {
 			pool = x509.NewCertPool()
 		}
 		if !pool.AppendCertsFromPEM(pem) {
-			return nil, &domain.Error{Kind: domain.InvalidInput, Message: "CA corporativa inválida."}
+			return nil, &domain.Error{Kind: domain.InvalidInput, Message: "Invalid corporate CA."}
 		}
 		transport.TLSClientConfig = &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
 	}
@@ -57,11 +57,11 @@ func (c *Client) Myself(ctx context.Context, p config.Profile, secret ports.Secr
 		return user, err
 	}
 	if secret.Reveal() == "" {
-		return user, failure(domain.Authentication, "Falta el token. Ejecuta auth login o proporciona JFLOW_TOKEN.")
+		return user, failure(domain.Authentication, "Token missing. Run auth login or provide JFLOW_TOKEN.")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/rest/api/3/myself", nil)
 	if err != nil {
-		return user, failure(domain.InvalidInput, "No se pudo preparar la solicitud.")
+		return user, failure(domain.InvalidInput, "Could not prepare the request.")
 	}
 	req.SetBasicAuth(p.Auth.Email, secret.Reveal())
 	req.Header.Set("Accept", "application/json")
@@ -71,34 +71,34 @@ func (c *Client) Myself(ctx context.Context, p config.Profile, secret ports.Secr
 	resp, err := client.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
-			return user, failure(domain.Canceled, "Operación cancelada.")
+			return user, failure(domain.Canceled, "Operation canceled.")
 		}
-		return user, failure(domain.Unavailable, "No se pudo conectar con Jira; comprueba red, proxy y certificados.")
+		return user, failure(domain.Unavailable, "Could not connect to Jira; check network, proxy, and certificates.")
 	}
 	defer resp.Body.Close()
 	switch {
 	case resp.StatusCode == 401:
-		return user, failure(domain.Authentication, "Jira rechazó la credencial; comprueba correo, vencimiento o revocación del token.")
+		return user, failure(domain.Authentication, "Jira rejected the credential; check email, expiration, or token revocation.")
 	case resp.StatusCode == 403:
-		return user, failure(domain.Forbidden, "Jira denegó el acceso; comprueba permisos y scopes.")
+		return user, failure(domain.Forbidden, "Jira denied access; check permissions and scopes.")
 	case resp.StatusCode == 404:
-		return user, failure(domain.NotFound, "No se encontró el sitio o el endpoint Jira.")
+		return user, failure(domain.NotFound, "The Jira site or endpoint was not found.")
 	case resp.StatusCode == 429 || resp.StatusCode >= 500:
-		return user, failure(domain.Unavailable, "Jira no está disponible o limitó las solicitudes; intenta más tarde.")
+		return user, failure(domain.Unavailable, "Jira is unavailable or rate-limited; try again later.")
 	case resp.StatusCode >= 300 && resp.StatusCode < 400:
-		return user, failure(domain.Forbidden, "Se rechazó una redirección autenticada de Jira.")
+		return user, failure(domain.Forbidden, "An authenticated redirect from Jira was rejected.")
 	case resp.StatusCode != 200:
-		return user, failure(domain.Unavailable, "Jira devolvió una respuesta inesperada.")
+		return user, failure(domain.Unavailable, "Jira returned an unexpected response.")
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024+1))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			return user, failure(domain.Canceled, "Operación cancelada.")
+			return user, failure(domain.Canceled, "Operation canceled.")
 		}
-		return user, failure(domain.Unavailable, "No se pudo leer la respuesta Jira.")
+		return user, failure(domain.Unavailable, "Could not read the Jira response.")
 	}
 	if len(b) > 1024*1024 {
-		return user, failure(domain.Unavailable, "La respuesta Jira supera el límite permitido.")
+		return user, failure(domain.Unavailable, "The Jira response exceeds the allowed limit.")
 	}
 	var wire struct {
 		AccountID   string `json:"accountId"`
@@ -106,10 +106,10 @@ func (c *Client) Myself(ctx context.Context, p config.Profile, secret ports.Secr
 		Active      *bool  `json:"active"`
 	}
 	if json.Unmarshal(b, &wire) != nil || wire.AccountID == "" {
-		return user, failure(domain.Unavailable, "Respuesta de identidad Jira inválida.")
+		return user, failure(domain.Unavailable, "Invalid Jira identity response.")
 	}
 	if wire.Active != nil && !*wire.Active {
-		return user, failure(domain.Authentication, "La cuenta Jira está inactiva.")
+		return user, failure(domain.Authentication, "The Jira account is inactive.")
 	}
 	clean := func(s string) string {
 		s = strings.ReplaceAll(s, req.Header.Get("Authorization"), "[REDACTED]")

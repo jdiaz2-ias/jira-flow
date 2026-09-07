@@ -1,22 +1,21 @@
-# ADR-004: secretos y viabilidad de Keychain
+# ADR-004: secrets and Keychain feasibility
 
-Estado: aceptada para diseño; validación runtime macOS pendiente. Fecha: 2026-09-06.
+Status: accepted for design; macOS runtime validation pending. Date: 2026-09-06.
 
-Decisión: mantener `SecretStore` inyectable y fijar `github.com/zalando/go-keyring v0.2.8`. Sin persistencia disponible, usar credencial de sesión; nunca fallback de texto plano.
+Decision: keep `SecretStore` injectable and pin `github.com/zalando/go-keyring v0.2.8`. Without persistence available, use a session credential; never a plain-text fallback.
 
-La revisión de [keyring_darwin.go v0.2.8](https://github.com/zalando/go-keyring/blob/v0.2.8/keyring_darwin.go) muestra que Set inicia `/usr/bin/security -i` y envía el comando con el secreto por stdin. Get/Delete llevan identificadores del recurso; el valor no forma parte del argv de Set. El test `TestPinnedMacKeyringDoesNotPassSecretInArgv` verifica la estructura de esa invocación en el módulo descargado. No es una prueba dinámica de Keychain.
+Review of [keyring_darwin.go v0.2.8](https://github.com/zalando/go-keyring/blob/v0.2.8/keyring_darwin.go) shows that Set starts `/usr/bin/security -i` and sends the command with the secret via stdin. Get/Delete carry resource identifiers; the value is not part of Set's argv. The `TestPinnedMacKeyringDoesNotPassSecretInArgv` test verifies the structure of that invocation in the downloaded module. It is not a dynamic Keychain test.
 
-La implementación tiene un límite de 4096 bytes para el comando interactivo y construye/valida ese comando después de iniciar el proceso. En F1 se debe comprobar el tamaño con una cota conservadora antes de invocar Set, y diseñar cancelación/gestión del proceso: la biblioteca no acepta context. Un token grande no se truncará; se rechazará su persistencia y podrá usarse efímeramente. Si esos requisitos no se satisfacen con el wrapper, sustituir el backend mediante el puerto.
+The implementation has a 4096-byte limit for the interactive command and builds/validates that command after starting the process. In F1 the size must be checked with a conservative bound before calling Set, and cancellation/process management must be designed: the library does not accept context. A large token will not be truncated; its persistence will be rejected and it can be used ephemerally. If those requirements are not met by the wrapper, replace the backend via the port.
 
-No registrar stdout/stderr de lectura de secretos; tampoco respuestas que puedan contener valores. La redacción de Secret es defensa de presentación, no cifrado en memoria. El test opt-in `TestMacKeychainRoundTrip` está preparado para macOS y se debe ejecutar antes de afirmar soporte persistente validado.
+Do not log stdout/stderr of secret reads; nor responses that may contain values. `Secret` redaction is presentation defense, not memory encryption. The opt-in test `TestMacKeychainRoundTrip` is prepared for macOS and must be run before claiming validated persistent support.
 
-Esta evidencia resuelve la viabilidad de evitar secretos en argv para la versión fijada, sin afirmar que Linux haya probado el llavero de macOS.
+This evidence resolves the feasibility of avoiding secrets in argv for the pinned version, without asserting that Linux has tested the macOS keyring.
 
+## F1 update (2026-09-07)
 
-## Actualización F1 (2026-09-07)
+The library wrapper does not allow canceling its processes. The active backend is replaced by an own executor using `exec.CommandContext`, with a 15-second timeout and without propagating stderr. macOS still uses `/usr/bin/security -i`; the complete command is bounded before starting the process and the secret is hex-encoded so as not to introduce interpretable quotes or newlines. It is validated by later read: interactive mode may exit with code zero after a command failure. Get decodes the hex; identifiers are random 32-character hex strings.
 
-El wrapper de la biblioteca no permite cancelar sus procesos. El backend activo se sustituye por un ejecutor propio `exec.CommandContext`, con timeout de 15 segundos y sin propagar stderr. macOS sigue usando `/usr/bin/security -i`; el comando completo se limita antes de iniciar el proceso y el secreto se codifica en hexadecimal para no introducir comillas ni saltos de línea interpretables. Se valida mediante lectura posterior: el modo interactivo puede terminar con código cero tras fallar un comando. Get decodifica el hexadecimal; los identificadores son aleatorios de 32 caracteres hexadecimales.
+Linux uses `secret-tool` via stdin and requires libsecret-tools/Secret Service. This runtime dependency allows cancellation without goroutines abandoned by the library. It has not been tested against a real Secret Service in F1. go-keyring remains pinned only for historical foundation audit.
 
-Linux usa `secret-tool` por stdin y requiere libsecret-tools/Secret Service. Esta dependencia de runtime permite cancelación sin goroutines abandonadas de la biblioteca. No se ha probado contra Secret Service real en F1. go-keyring permanece fijado únicamente para la auditoría histórica foundation.
-
-El backend macOS pasó una prueba real con secreto sintético (escritura/lectura/eliminación) en arm64. El límite de persistencia es 1500 bytes; una credencial excesiva se rechaza sin iniciar el proceso y puede usarse efímeramente. La sustitución conserva la credencial anterior hasta guardar la configuración nueva; referencias pendientes de limpieza permiten reintentar con logout si el llavero falla después.
+The macOS backend passed a real test with a synthetic secret (write/read/delete) on arm64. The persistence limit is 1500 bytes; an oversized credential is rejected without starting the process and can be used ephemerally. The replacement keeps the previous credential until the new configuration is saved; pending cleanup references allow retry with logout if the keyring fails afterward.

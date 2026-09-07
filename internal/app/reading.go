@@ -89,7 +89,7 @@ func (r *Reader) verify(ctx context.Context) error {
 		return err
 	}
 	if r.ExpectedAccount != "" && user.ID != r.ExpectedAccount {
-		return problem(domain.Authentication, "La credencial corresponde a otra identidad; ejecuta auth login para actualizar el perfil.")
+		return problem(domain.Authentication, "Credential belongs to another identity; run auth login to update the profile.")
 	}
 	return nil
 }
@@ -113,7 +113,7 @@ func (r *Reader) decodeCursor(raw, scope string) (searchCursor, error) {
 	if raw == "" {
 		return c, nil
 	}
-	invalid := problem(domain.InvalidInput, "Cursor inválido o perteneciente a otro perfil, identidad, consulta o selección de campos.")
+	invalid := problem(domain.InvalidInput, "Invalid cursor or belongs to a different profile, identity, query, or field selection.")
 	if len(raw) > 1024*1024 {
 		return c, invalid
 	}
@@ -139,13 +139,13 @@ func (r *Reader) decodeCursor(raw, scope string) (searchCursor, error) {
 func (r *Reader) encodeCursor(c searchCursor) (string, error) {
 	b, err := json.Marshal(c)
 	if err != nil {
-		return "", problem(domain.Internal, "No se pudo crear el cursor.")
+		return "", problem(domain.Internal, "Could not create the cursor.")
 	}
 	mac := hmac.New(sha256.New, r.CursorKey)
 	mac.Write(b)
 	value := base64.RawURLEncoding.EncodeToString(b) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	if len(value) > 1024*1024 {
-		return "", problem(domain.Partial, "No se pudo emitir el cursor porque supera el límite permitido.")
+		return "", problem(domain.Partial, "Could not emit the cursor because it exceeds the allowed limit.")
 	}
 	return value, nil
 }
@@ -161,7 +161,7 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 		o.Query.PageSize = 50
 	}
 	if o.Limit < 1 || o.Limit > 5000 || o.MaxResults < 1 || o.MaxResults > 5000 || o.Query.PageSize < 1 || o.Query.PageSize > 100 || (o.Offline && o.Refresh) {
-		return result, problem(domain.InvalidInput, "Límites inválidos o combinación --offline --refresh no permitida.")
+		return result, problem(domain.InvalidInput, "Invalid limits or combination --offline --refresh not allowed.")
 	}
 	scope := hash([]any{r.Scope, o.Query.JQL, o.Query.Fields})
 	cursor, err := r.decodeCursor(o.PageToken, scope)
@@ -185,7 +185,7 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 		}
 	}
 	if o.Offline {
-		return result, problem(domain.NotFound, "No hay datos en la caché de este proceso. F2 no guarda issues en disco; ejecuta la consulta sin --offline.")
+		return result, problem(domain.NotFound, "There is no data in the cache for this process. F2 does not save issues to disk; run the query without --offline.")
 	}
 	if err = r.verify(ctx); err != nil {
 		r.Cache.DeletePrefix(r.Scope + ":")
@@ -210,10 +210,10 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 			}
 		}
 		if cause == nil && o.All && !result.Meta.Complete {
-			cause = problem(domain.Partial, "Se alcanzó el límite protector; el total de resultados es desconocido.")
+			cause = problem(domain.Partial, "The guard limit was reached; the total number of results is unknown.")
 		}
 		if !result.Meta.Complete {
-			result.Warnings = append(result.Warnings, "Resultado incompleto; usa next_page_token con --page-token para continuar.")
+			result.Warnings = append(result.Warnings, "Incomplete result; use next_page_token with --page-token to continue.")
 		}
 		if cause != nil {
 			r.Cache.DeletePrefix(r.Scope + ":")
@@ -223,7 +223,7 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 			}
 			if len(result.Issues) > 0 {
 				r.Cache.DeletePrefix(r.Scope + ":")
-				return result, &domain.Error{Kind: domain.Partial, Message: "La lectura quedó incompleta: " + cause.Error(), Cause: cause}
+				return result, &domain.Error{Kind: domain.Partial, Message: "Reading was incomplete: " + cause.Error(), Cause: cause}
 			}
 			return result, cause
 		}
@@ -235,7 +235,7 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 	for requests := 0; requests < 1000; {
 		for len(cursor.Pending) > 0 && len(result.Issues) < target {
 			if len(cursor.Seen) >= 5000 {
-				return finish(problem(domain.Partial, "Se alcanzó el límite de 5000 IDs por cadena de paginación; inicia otra consulta más acotada."))
+				return finish(problem(domain.Partial, "The limit of 5000 IDs per pagination chain was reached; start a more constrained query."))
 			}
 			issue := cursor.Pending[0]
 			cursor.Pending = cursor.Pending[1:]
@@ -250,10 +250,10 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 			return finish(nil)
 		}
 		if len(cursor.Seen) >= 5000 {
-			return finish(problem(domain.Partial, "Se alcanzó el límite de 5000 IDs por cadena de paginación; inicia otra consulta más acotada."))
+			return finish(problem(domain.Partial, "The limit of 5000 IDs per pagination chain was reached; start a more constrained query."))
 		}
 		if tokens[cursor.Token] {
-			return finish(problem(domain.Partial, "Jira repitió un cursor de paginación."))
+			return finish(problem(domain.Partial, "Jira repeated a pagination cursor."))
 		}
 		tokens[cursor.Token] = true
 		q := o.Query
@@ -265,16 +265,16 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 			return finish(e)
 		}
 		if len(page.Issues) > 100 {
-			return finish(problem(domain.Unavailable, "Jira devolvió una página excesiva."))
+			return finish(problem(domain.Unavailable, "Jira returned an oversized page."))
 		}
 		cursor.Pending = page.Issues
 		cursor.Token = page.NextPageToken
 		cursor.Done = page.Complete
 		if !cursor.Done && cursor.Token == "" {
-			return finish(problem(domain.Partial, "Falta el cursor para continuar la búsqueda."))
+			return finish(problem(domain.Partial, "Cursor is missing to continue the search."))
 		}
 	}
-	return finish(problem(domain.Partial, "Se alcanzó el límite protector de páginas."))
+	return finish(problem(domain.Partial, "The guard page limit was reached."))
 }
 func (r *Reader) Show(ctx context.Context, key string, o domain.DetailOptions, refresh, offline bool) (DetailResult, error) {
 	result := DetailResult{Meta: ReadMeta{Profile: r.Profile, Source: "network", FetchedAt: time.Now().UTC()}}
@@ -283,7 +283,7 @@ func (r *Reader) Show(ctx context.Context, key string, o domain.DetailOptions, r
 		return result, err
 	}
 	if refresh && offline {
-		return result, problem(domain.InvalidInput, "--offline y --refresh son incompatibles.")
+		return result, problem(domain.InvalidInput, "--offline and --refresh are incompatible.")
 	}
 	cacheKey := r.Scope + ":detail:" + hash([]any{key, o})
 	if !refresh {
@@ -297,7 +297,7 @@ func (r *Reader) Show(ctx context.Context, key string, o domain.DetailOptions, r
 		}
 	}
 	if offline {
-		return result, problem(domain.NotFound, "No hay detalle en memoria; F2 no persiste issues entre invocaciones.")
+		return result, problem(domain.NotFound, "There is no detail in memory; F2 does not persist issues between invocations.")
 	}
 	if err = r.verify(ctx); err != nil {
 		r.Cache.DeletePrefix(r.Scope + ":")

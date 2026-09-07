@@ -1,21 +1,21 @@
-# Compatibilidad
+# Compatibility
 
-Go 1.27.1. Objetivos: Linux/macOS, amd64/arm64, `CGO_ENABLED=0`. `make build-all` compila las cuatro combinaciones.
+Go 1.27.1. Targets: Linux/macOS, amd64/arm64, `CGO_ENABLED=0`. `make build-all` compiles the four combinations.
 
-F0 se ejecutó en Linux amd64; F1 se valida localmente en macOS arm64. Compilar para otra plataforma no prueba su ejecución. CI define Ubuntu 24.04 y macOS 15.
+F0 ran on Linux amd64; F1 is validated locally on macOS arm64. Compiling for another platform does not prove execution. CI defines Ubuntu 24.04 and macOS 15.
 
-## Credenciales del sistema
+## System credentials
 
-macOS: `/usr/bin/security` y Keychain desbloqueado. Prueba real del backend F1:
+macOS: `/usr/bin/security` and unlocked Keychain. F1 real backend test:
 
 ```bash
 JFLOW_TEST_KEYCHAIN=1 go test ./internal/secretstore -run TestNativeKeychainRoundTrip -count=1
 ```
 
-Crea y elimina exclusivamente una referencia aleatoria con secreto sintético bajo `jflow`. No requiere credenciales Jira. Pasó en el equipo macOS arm64 de F1.
+Creates and deletes exactly one random synthetic secret reference under `jflow`. Does not require Jira credentials. Passed on the F1 macOS arm64 machine.
 
-Linux: ejecutable `secret-tool` (libsecret-tools) y sesión D-Bus con Secret Service. Ejecución real pendiente; cobertura con ejecutor inyectado. Si el almacén está ausente o bloqueado, la CLI devuelve un error y permite reintentar con `--no-store` y un token efímero. No hay fallback de archivo de texto plano.
+Linux: `secret-tool` executable (libsecret-tools) and a D-Bus session with Secret Service. Real run pending; covered with injected executor. If the store is absent or locked, the CLI returns an error and allows retry with `--no-store` and an ephemeral token. There is no plain-text fallback.
 
-La prueba F0 bajo tag `foundation` permanece como auditoría de la biblioteca fijada; el backend activo F1 usa procesos cancelables propios.
+The F0 test under the `foundation` tag remains as an audit of the pinned library; the F1 active backend uses its own cancelable processes.
 
-Informes: [F0](validation-f0.md), [F1](validation-f1.md).
+Reports: [F0](validation-f0.md), [F1](validation-f1.md).

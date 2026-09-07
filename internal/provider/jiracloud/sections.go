@@ -25,7 +25,7 @@ func readSection[T any](ctx context.Context, s *Session, key, section string, op
 		}
 	}
 	if start < 0 || size < 1 || size > 100 || limit < 1 || limit > 5000 {
-		return items, info, failure(domain.InvalidInput, "Límites de sección inválidos.")
+		return items, info, failure(domain.InvalidInput, "Invalid section limits.")
 	}
 	seen := map[string]bool{}
 	offset := start
@@ -46,14 +46,14 @@ func readSection[T any](ctx context.Context, s *Session, key, section string, op
 			Values   []json.RawMessage `json:"values"`
 		}
 		if json.Unmarshal(b, &page) != nil || page.Start == nil || *page.Start != offset || (page.Total != nil && *page.Total < 0) {
-			return items, info, failure(domain.Unavailable, "Paginación de sección Jira inválida.")
+			return items, info, failure(domain.Unavailable, "Invalid Jira section pagination.")
 		}
 		entries := page.Values
 		if section == "comment" {
 			entries = page.Comments
 		}
 		if entries == nil || len(entries) > 100 {
-			return items, info, failure(domain.Unavailable, "Sección Jira inválida.")
+			return items, info, failure(domain.Unavailable, "Invalid Jira section.")
 		}
 		info.Total = page.Total
 		consumed := 0
@@ -67,7 +67,7 @@ func readSection[T any](ctx context.Context, s *Session, key, section string, op
 				ID string `json:"id"`
 			}
 			if json.Unmarshal(raw, &id) != nil || id.ID == "" {
-				return items, info, failure(domain.Unavailable, "Registro de sección Jira inválido.")
+				return items, info, failure(domain.Unavailable, "Invalid Jira section record.")
 			}
 			if seen[id.ID] {
 				continue
@@ -94,15 +94,15 @@ func readSection[T any](ctx context.Context, s *Session, key, section string, op
 		info.NextStart = &next
 		if len(items) >= limit {
 			if options.All {
-				return items, info, &domain.Error{Kind: domain.Partial, Message: "Se alcanzó el límite protector de la sección."}
+				return items, info, &domain.Error{Kind: domain.Partial, Message: "Section safeguard limit reached."}
 			}
 			return items, info, nil
 		}
 		if consumed == 0 || added == 0 {
-			return items, info, failure(domain.Unavailable, "La paginación de la sección no avanzó.")
+			return items, info, failure(domain.Unavailable, "Section pagination did not advance.")
 		}
 	}
-	return items, info, &domain.Error{Kind: domain.Partial, Message: "Se alcanzó el límite protector de páginas de la sección."}
+	return items, info, &domain.Error{Kind: domain.Partial, Message: "Section page safeguard limit reached."}
 }
 func (s *Session) comments(ctx context.Context, key string, o domain.DetailOptions) (domain.CommentPage, error) {
 	clean := cleanRemote(s.Profile, s.Secret)
@@ -114,7 +114,7 @@ func (s *Session) comments(ctx context.Context, key string, o domain.DetailOptio
 			Created string          `json:"created"`
 		}
 		if json.Unmarshal(raw, &w) != nil {
-			return domain.Comment{}, failure(domain.Unavailable, "Comentario Jira inválido.")
+			return domain.Comment{}, failure(domain.Unavailable, "Invalid Jira comment.")
 		}
 		blocks, _ := normalizeADF(w.Body, clean)
 		return domain.Comment{ID: clean(w.ID), Author: user(w.Author, clean), Body: blocks, CreatedAt: parseTime(w.Created)}, nil
@@ -135,7 +135,7 @@ func (s *Session) history(ctx context.Context, key string, o domain.DetailOption
 			} `json:"items"`
 		}
 		if json.Unmarshal(raw, &w) != nil {
-			return domain.HistoryEntry{}, failure(domain.Unavailable, "Historial Jira inválido.")
+			return domain.HistoryEntry{}, failure(domain.Unavailable, "Invalid Jira history.")
 		}
 		result := domain.HistoryEntry{ID: clean(w.ID), Author: user(w.Author, clean), CreatedAt: parseTime(w.Created), Changes: []domain.Change{}}
 		for _, item := range w.Items {

@@ -42,7 +42,7 @@ func Success(data any) Envelope {
 }
 
 func Failure(err error) Envelope {
-	e := &Error{Code: string(domain.Internal), Message: "Error interno.", Details: map[string]any{}}
+	e := &Error{Code: string(domain.Internal), Message: "Internal error.", Details: map[string]any{}}
 	var public *domain.Error
 	if errors.As(err, &public) {
 		e.Code, e.Message, e.Retryable = string(public.Kind), public.Message, public.Retryable

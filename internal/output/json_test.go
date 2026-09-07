@@ -11,7 +11,7 @@ import (
 )
 
 func TestFailureHidesUnderlyingCause(t *testing.T) {
-	err := &domain.Error{Kind: domain.Authentication, Message: "Credencial rechazada.", Cause: errors.New("synthetic-private-token")}
+	err := &domain.Error{Kind: domain.Authentication, Message: "Credential rejected.", Cause: errors.New("synthetic-private-token")}
 	var out bytes.Buffer
 	if err := Write(&out, Failure(err)); err != nil {
 		t.Fatal(err)

@@ -13,7 +13,7 @@ var issueKeyPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}-[1-9][0-9]{0,18}
 func IssueKey(key string) (string, error) {
 	key = strings.ToUpper(key)
 	if !issueKeyPattern.MatchString(key) {
-		return "", &Error{Kind: InvalidInput, Message: "Clave de issue inválida; usa PROYECTO-123."}
+		return "", &Error{Kind: InvalidInput, Message: "Invalid issue key; use PROJECT-123."}
 	}
 	return key, nil
 }
@@ -24,7 +24,7 @@ func BrowseURL(site, key string) (string, error) {
 	}
 	u, err := url.Parse(site)
 	if err != nil || u.Scheme != "https" || u.User != nil || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
-		return "", &Error{Kind: InvalidInput, Message: "Sitio Jira inválido."}
+		return "", &Error{Kind: InvalidInput, Message: "Invalid Jira site."}
 	}
 	u.Path = strings.TrimSuffix(u.Path, "/") + "/browse/" + key
 	return u.String(), nil
@@ -37,7 +37,7 @@ type QueryOptions struct {
 
 func quoteJQL(s string) (string, error) {
 	if len(s) > 256 || strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) }) {
-		return "", &Error{Kind: InvalidInput, Message: "Valor de filtro inválido."}
+		return "", &Error{Kind: InvalidInput, Message: "Invalid filter value."}
 	}
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`, nil
 }
@@ -45,18 +45,18 @@ func (o QueryOptions) Build() (string, error) {
 	bad := func(s string) (string, error) { return "", &Error{Kind: InvalidInput, Message: s} }
 	if o.Mode == "search" {
 		if o.Project != "" || o.Category != "" || o.Type != "" || o.Priority != "" || o.UpdatedSince != "" || o.Sort != "" || o.IncludeDone {
-			return bad("No combines --jql con filtros estructurados ni --sort.")
+			return bad("Do not combine --jql with structured filters or --sort.")
 		}
 		if strings.TrimSpace(o.JQL) == "" || len(o.JQL) > 32768 {
-			return bad("Indica una consulta --jql no vacía de hasta 32 KiB.")
+			return bad("Provide a non-empty --jql query up to 32 KiB.")
 		}
 		return o.JQL, nil
 	}
 	if o.Mode != "mine" && o.Mode != "list" {
-		return bad("Tipo de consulta inválido.")
+		return bad("Invalid query type.")
 	}
 	if o.Mode == "list" && o.Project == "" && o.Category == "" && o.Type == "" && o.Priority == "" && o.UpdatedSince == "" {
-		return bad("list requiere --project, un proyecto predeterminado u otro filtro explícito.")
+		return bad("list requires --project, a default project, or another explicit filter.")
 	}
 	parts := []string{}
 	if o.Mode == "mine" {
@@ -74,7 +74,7 @@ func (o QueryOptions) Build() (string, error) {
 	if o.Category != "" {
 		literal, ok := map[string]string{"todo": "To Do", "in-progress": "In Progress", "done": "Done"}[o.Category]
 		if !ok {
-			return bad("Categoría inválida: usa todo, in-progress o done.")
+			return bad("Invalid category: use todo, in-progress, or done.")
 		}
 		value, _ := quoteJQL(literal)
 		parts = append(parts, "statusCategory = "+value)
@@ -85,7 +85,7 @@ func (o QueryOptions) Build() (string, error) {
 		v := o.UpdatedSince
 		if _, err := time.Parse("2006-01-02", v); err != nil {
 			if !regexp.MustCompile(`^-[1-9][0-9]{0,3}[mhdw]$`).MatchString(v) {
-				return bad("--updated-since requiere YYYY-MM-DD o un intervalo como -7d.")
+				return bad("--updated-since requires YYYY-MM-DD or an interval like -7d.")
 			}
 		}
 		value, _ := quoteJQL(v)
@@ -103,7 +103,7 @@ func (o QueryOptions) Build() (string, error) {
 			}
 			field, ok := map[string]string{"updated": "updated", "created": "created", "priority": "priority", "key": "key", "due": "due"}[item]
 			if !ok || seen[field] {
-				return bad("--sort admite updated, created, priority, key o due; usa - para descendente.")
+				return bad("--sort accepts updated, created, priority, key, or due; use - for descending.")
 			}
 			seen[field] = true
 			order = append(order, field+" "+direction)
