@@ -2,7 +2,7 @@
 
 Una CLI para trabajar con Jira desde Linux y macOS. Ejecutable: `jflow`.
 
-Estado actual: **F1, configuración y acceso**. Incluye perfiles, autenticación personal Jira Cloud, `me` y `doctor`. Consultas de issues y enlaces corresponden a F2. Consulta la [validación F1](docs/validation-f1.md) para resultados y límites.
+Estado actual: **F2, lectura y enlaces**. Incluye perfiles, autenticación Jira Cloud, consultas de issues, detalle, comentarios/historial y enlaces. Consulta la [validación F2](docs/validation-f2.md) para resultados y límites.
 
 ## Inicio rápido
 
@@ -51,6 +51,23 @@ plataforma: linux/amd64
 
 El commit refleja Git cuando se compila con Make. `go run ./cmd/jflow version` conserva los valores de desarrollo.
 
+## Consultar Jira
+
+```bash
+./bin/jflow mine --format table
+./bin/jflow mine --project APP --status-category in-progress
+./bin/jflow config set default_project APP
+./bin/jflow list --type Bug --limit 20
+./bin/jflow search --jql 'project = APP ORDER BY updated DESC' --all --format json
+./bin/jflow show APP-123 --comments --history
+./bin/jflow link APP-123
+./bin/jflow open APP-123
+```
+
+Usa el perfil activo o añade `--profile ias`. Sustituye `APP` y `APP-123` por claves reales. `mine` excluye Done por defecto; `--include-done` lo incluye. Los listados indican truncamiento y ofrecen cursor para continuar con `--page-token`. `show` carga comentarios/historial solo al solicitarlos; sus offsets se controlan con `--comments-start` y `--history-start`.
+
+`--refresh` omite la caché en memoria. F2 no guarda issues en disco: `--offline` no recupera resultados de una ejecución anterior. Una consulta de red verifica la identidad una vez, nunca por cada fila. El proyecto predeterminado se conserva al renovar el login.
+
 ## Comandos disponibles
 
 | Comando | Resultado |
@@ -65,8 +82,12 @@ El commit refleja Git cuando se compila con Make. `go run ./cmd/jflow version` c
 | `jflow me` | Identidad autenticada en Jira |
 | `jflow doctor` | Diagnóstico de configuración y conexión |
 | `jflow config path/validate` | Ruta y validación de configuración |
+| `jflow config set default_project APP` | Proyecto predeterminado del perfil |
+| `jflow mine/list/search` | Listados con filtros, páginas y formato tabla/JSON |
+| `jflow show CLAVE` | Detalle con secciones opcionales |
+| `jflow link/open CLAVE` | URL navegable y apertura de navegador |
 
-Sin comando se devuelve código 2. `mine` llegará en F2. Ayuda, versión y listado de perfiles no requieren conexión a Jira; `auth login`, `me` y `doctor` sí validan identidad por red.
+Sin comando se devuelve código 2. Ayuda, versión, perfiles y `link` no requieren conexión a Jira. Las consultas autenticadas necesitan permisos de lectura en los proyectos.
 
 ## Desarrollo y verificación
 
@@ -87,9 +108,11 @@ Go + Cobra para la CLI; Bubble Tea/Bubbles/Lip Gloss v2 están fijados y se comp
 ```text
 cmd/jflow       Entrada del proceso y señales
 internal/cli    Argumentos, ayuda y códigos de salida
-internal/app    Casos de uso de acceso y metadatos de versión
+internal/app    Casos de uso de acceso, lectura, cursores y versión
 internal/config Rutas, perfiles y persistencia JSON
-internal/provider/jiracloud Cliente HTTPS y mapeo de identidad
+internal/provider/jiracloud HTTPS, identidad, issues, ADF y paginación
+internal/cache  Caché acotada en memoria
+internal/browser Lanzadores nativos macOS/Linux
 internal/secretstore Llavero cancelable macOS/Linux
 internal/domain Issues, progreso, workflows y errores
 internal/ports  Fronteras para Jira y almacenamiento de secretos
@@ -105,12 +128,13 @@ El módulo `jira-flow.local/jflow` es deliberadamente local y provisional. El re
 ## Continuar la implementación
 
 - [Plan de implementación completo](docs/implementation-plan.md).
-- [Estado de fases y siguiente incremento F2](docs/roadmap.md).
+- [Estado de fases y siguiente incremento F3](docs/roadmap.md).
 - [Arquitectura y versiones fijadas](docs/architecture.md).
 - [Autenticación y catálogo de endpoints/scopes](docs/authentication.md).
 - [Contrato JSON y errores](docs/json-contract.md).
 - [Decisiones de workflows](docs/workflows.md).
 - [Registro de validación F0](docs/validation-f0.md).
 - [Registro de validación F1](docs/validation-f1.md).
+- [Registro de validación F2](docs/validation-f2.md).
 
-La siguiente fase es F2: consultas de issues y enlaces (`mine`, `search`, `show`, `link`, `open`). La prueba contra Jira real de F1 queda pendiente de un tenant autorizado.
+La siguiente fase es F3: transiciones y workflows, con preparación, confirmación y verificación de cambios. F2 permanece como lectura; no modifica issues.

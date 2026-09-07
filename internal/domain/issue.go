@@ -37,6 +37,7 @@ type Issue struct {
 	UpdatedAt                       time.Time
 	DueDate                         *LocalDate
 	URL                             string
+	Priority, IssueType, Project    *NamedID
 }
 
 // Blocks contain normalized content, never terminal escapes or raw HTML.
@@ -51,12 +52,19 @@ type IssueDetail struct {
 	Subtasks         []Issue
 	SubtasksComplete bool
 	Links            []IssueLink
+	Comments         *CommentPage
+	History          *HistoryPage
+	Warnings         []string
 }
 type IssueLink struct {
 	Type   string
 	Target IssueRef
 }
-type DetailOptions struct{ IncludeDescription, IncludeSubtasks, IncludeLinks bool }
+type DetailOptions struct {
+	IncludeDescription, IncludeSubtasks, IncludeLinks   bool
+	IncludeComments, IncludeHistory, All                bool
+	SectionLimit, PageSize, CommentsStart, HistoryStart int
+}
 
 type SearchRequest struct {
 	JQL       string
@@ -81,4 +89,32 @@ type Progress struct {
 	TimeSpentSeconds, RemainingSeconds, OriginalEstimateSeconds *int64
 	FetchedAt                                                   time.Time
 	Stale                                                       bool
+}
+
+type Comment struct {
+	ID        string
+	Author    *User
+	Body      []Block
+	CreatedAt time.Time
+}
+type Change struct{ Field, From, To string }
+type HistoryEntry struct {
+	ID        string
+	Author    *User
+	CreatedAt time.Time
+	Changes   []Change
+}
+type PageInfo struct {
+	StartAt   int
+	NextStart *int
+	Total     *int
+	Complete  bool
+}
+type CommentPage struct {
+	Items []Comment
+	PageInfo
+}
+type HistoryPage struct {
+	Items []HistoryEntry
+	PageInfo
 }

@@ -1,6 +1,6 @@
-# Autenticación F1 y catálogo para F2–F4
+# Autenticación y lectura F1–F2; catálogo F3–F4
 
-F1 implementa autenticación personal Cloud y `myself`. El catálogo de issues y transiciones continúa como especificación para fases posteriores. Contrato REST y tokens reconsultados el 2026-09-07; ningún tenant real fue utilizado.
+F1 implementa autenticación personal Cloud y `myself`; F2 añade búsqueda mejorada, detalle, comentarios e historial de solo lectura. Transiciones y escrituras continúan como especificación para fases posteriores. Contrato REST y tokens reconsultados el 2026-09-07; el usuario confirmó la conexión F1 con su tenant; las pruebas F2 usan datos sintéticos.
 
 ## Métodos personales Cloud
 
@@ -15,7 +15,7 @@ Los tokens de service accounts y otros tipos de integración no se infieren de e
 
 La columna scopes enumera los scopes **clásicos OAuth publicados en la referencia REST**, como catálogo técnico, no como promesa de que toda modalidad de token acepte una lista idéntica. En F1, documentar la selección que ofrezca la consola de tokens del tenant probado. Los permisos de proyecto y visibilidad siguen siendo necesarios.
 
-| Comando futuro | Método/ruta | Scope clásico de referencia | Permisos/contexto |
+| Comando | Método/ruta | Scope clásico de referencia | Permisos/contexto |
 | --- | --- | --- | --- |
 | `auth login`, `me`, `doctor` | GET `/rest/api/3/myself` | `read:jira-user` | Acceso a Jira |
 | `mine`, `list`, `search`, `summary` | POST `/rest/api/3/search/jql` | `read:jira-work` | Browse Projects y seguridad de issue |
@@ -36,7 +36,7 @@ Scopes granulares documentados para los primeros endpoints:
 
 No solicitar permisos administrativos para un flujo personal de consulta/transiciones. No reutilizar la lista granular de GET search para POST search; los scopes publicados pueden diferir. Los comandos que preparan y aplican necesitan la unión de sus lecturas y escritura.
 
-Fuentes: [myself](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/), [búsqueda](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), [issues/transiciones](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comentarios](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [campos](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-fields/). Revisión: 2026-09-06; revalidar al activar cada operación.
+Fuentes: [myself](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/), [búsqueda](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), [issues/transiciones](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [comentarios](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/), [campos](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-fields/). Revisión: 2026-09-07 para lecturas F2; revalidar al activar nuevas operaciones.
 
 ## Credenciales y macOS
 

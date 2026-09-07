@@ -81,6 +81,9 @@ func (a Access) Login(ctx context.Context, name string, p config.Profile, token 
 	err = config.Update(ctx, a.Path, func(c *config.Config) error {
 		old := c.Profiles[name]
 		previousRef = old.Auth.CredentialRef
+		if p.DefaultProject == "" {
+			p.DefaultProject = old.DefaultProject
+		}
 		if persist {
 			if err := a.Secrets.Set(ctx, ports.CredentialRef(p.Auth.CredentialRef), token); err != nil {
 				return err

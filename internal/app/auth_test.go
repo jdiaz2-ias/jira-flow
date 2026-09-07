@@ -197,3 +197,21 @@ func TestCleanupFailureRemainsRecoverable(t *testing.T) {
 		t.Fatal("retired credential leaked")
 	}
 }
+
+func TestLoginPreservesDefaultProject(t *testing.T) {
+	a, _ := authFixture(t)
+	p := pfixture("u@example.com")
+	p.DefaultProject = "APP"
+	ctx := context.Background()
+	if _, e := a.Login(ctx, "work", p, ports.NewSecret("first"), false); e != nil {
+		t.Fatal(e)
+	}
+	p.DefaultProject = ""
+	if _, e := a.Login(ctx, "work", p, ports.NewSecret("second"), false); e != nil {
+		t.Fatal(e)
+	}
+	c, e := config.Load(a.Path)
+	if e != nil || c.Profiles["work"].DefaultProject != "APP" {
+		t.Fatal(c, e)
+	}
+}
