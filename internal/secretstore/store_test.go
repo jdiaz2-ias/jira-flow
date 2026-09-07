@@ -65,7 +65,7 @@ func TestRejectBeforeSpawningAndRedactBackendErrors(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if e = s.Delete(ctx, ref); e == nil || e.Error() != "Operación cancelada." {
+	if e = s.Delete(ctx, ref); e == nil || e.Error() != "Operation canceled." {
 		t.Fatal(e)
 	}
 }

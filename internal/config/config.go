@@ -62,7 +62,7 @@ func ResolvePaths(platform, home string, env func(string) string) Paths {
 func DefaultPaths() (Paths, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return Paths{}, invalid("No se pudo resolver el directorio personal.")
+		return Paths{}, invalid("Could not resolve home directory.")
 	}
 	return ResolvePaths(runtime.GOOS, home, os.Getenv), nil
 }
@@ -77,51 +77,51 @@ func ValidRef(s string) bool  { return refPattern.MatchString(s) }
 func (p Profile) BaseURL() (string, error) {
 	u, err := url.Parse(p.SiteURL)
 	if err != nil || u.Scheme != "https" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Port() != "" || (u.Path != "" && u.Path != "/") || u.RawPath != "" || !strings.HasSuffix(u.Hostname(), ".atlassian.net") || strings.ContainsAny(u.Hostname(), " /\\") {
-		return "", invalid("El sitio debe ser una URL HTTPS de Jira Cloud (*.atlassian.net), sin ruta ni credenciales.")
+		return "", invalid("Site must be a Jira Cloud HTTPS URL (*.atlassian.net), with no path or credentials.")
 	}
 	switch p.Auth.Method {
 	case "api-token-unscoped":
 		return strings.TrimSuffix(p.SiteURL, "/"), nil
 	case "api-token-scoped":
 		if !cloudPattern.MatchString(p.CloudID) {
-			return "", invalid("El token con scopes requiere un cloud ID explícito válido.")
+			return "", invalid("Scoped token requires a valid explicit cloud ID.")
 		}
 		return "https://api.atlassian.com/ex/jira/" + p.CloudID, nil
 	default:
-		return "", invalid("Método inválido: usa api-token-unscoped o api-token-scoped.")
+		return "", invalid("Invalid method: use api-token-unscoped or api-token-scoped.")
 	}
 }
 func (p Profile) Validate() error {
 	if p.Provider != "jira-cloud" {
-		return invalid("Proveedor no soportado; usa jira-cloud.")
+		return invalid("Unsupported provider; use jira-cloud.")
 	}
 	if _, err := p.BaseURL(); err != nil {
 		return err
 	}
 	a, err := mail.ParseAddress(p.Auth.Email)
 	if err != nil || a.Address != p.Auth.Email || strings.ContainsAny(p.Auth.Email, "\r\n:") {
-		return invalid("Se requiere un correo válido.")
+		return invalid("A valid email is required.")
 	}
 	for _, ref := range p.RetiredCredentialRefs {
 		if !ValidRef(ref) {
-			return invalid("Referencia de credencial retirada inválida.")
+			return invalid("Invalid retired credential reference.")
 		}
 	}
 	if p.Auth.CredentialRef != "" && !ValidRef(p.Auth.CredentialRef) {
-		return invalid("Referencia de credencial inválida.")
+		return invalid("Invalid credential reference.")
 	}
 	return nil
 }
 func (c Config) Validate() error {
 	if c.SchemaVersion != 1 {
-		return invalid("Versión de configuración no soportada; se requiere schema_version 1.")
+		return invalid("Unsupported configuration version; schema_version 1 is required.")
 	}
 	if c.Profiles == nil {
-		return invalid("La configuración requiere profiles.")
+		return invalid("Configuration requires profiles.")
 	}
 	for name, p := range c.Profiles {
 		if !ValidName(name) {
-			return invalid("Nombre de perfil inválido.")
+			return invalid("Invalid profile name.")
 		}
 		if p.Auth.Email == "" {
 			p.Auth.Email = c.Email
@@ -132,7 +132,7 @@ func (c Config) Validate() error {
 	}
 	if c.ActiveProfile != "" {
 		if _, ok := c.Profiles[c.ActiveProfile]; !ok {
-			return invalid("El perfil activo no existe.")
+			return invalid("Active profile does not exist.")
 		}
 	}
 	return nil
@@ -144,17 +144,17 @@ func Load(path string) (Config, error) {
 		return c, nil
 	}
 	if err != nil {
-		return c, invalid("No se pudo leer la configuración.")
+		return c, invalid("Could not read configuration.")
 	}
 	defer f.Close()
 	c = Config{}
 	dec := json.NewDecoder(io.LimitReader(f, 1024*1024+1))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&c); err != nil {
-		return c, invalid("Configuración JSON inválida o con campos desconocidos.")
+		return c, invalid("Invalid JSON configuration or unknown fields.")
 	}
 	if dec.Decode(new(any)) != io.EOF {
-		return c, invalid("La configuración debe contener un solo documento JSON.")
+		return c, invalid("Configuration must contain a single JSON document.")
 	}
 	return c, c.Validate()
 }
@@ -164,11 +164,11 @@ func Load(path string) (Config, error) {
 func Update(ctx context.Context, path string, change func(*Config) error) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return invalid("No se pudo crear el directorio de configuración.")
+		return invalid("Could not create configuration directory.")
 	}
 	lock, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		return invalid("No se pudo abrir el bloqueo de configuración.")
+		return invalid("Could not open configuration lock.")
 	}
 	defer lock.Close()
 	for {
@@ -177,17 +177,17 @@ func Update(ctx context.Context, path string, change func(*Config) error) error 
 			break
 		}
 		if err != syscall.EWOULDBLOCK && err != syscall.EAGAIN {
-			return invalid("No se pudo bloquear la configuración.")
+			return invalid("Could not lock configuration.")
 		}
 		select {
 		case <-ctx.Done():
-			return &domain.Error{Kind: domain.Canceled, Message: "Operación cancelada."}
+			return &domain.Error{Kind: domain.Canceled, Message: "Operation canceled."}
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 	if ctx.Err() != nil {
-		return &domain.Error{Kind: domain.Canceled, Message: "Operación cancelada."}
+		return &domain.Error{Kind: domain.Canceled, Message: "Operation canceled."}
 	}
 	c, err := Load(path)
 	if err != nil {
@@ -201,11 +201,11 @@ func Update(ctx context.Context, path string, change func(*Config) error) error 
 	}
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		return invalid("No se pudo serializar la configuración.")
+		return invalid("Could not serialize configuration.")
 	}
 	f, err := os.CreateTemp(dir, ".jflow-*")
 	if err != nil {
-		return invalid("No se pudo escribir la configuración.")
+		return invalid("Could not write configuration.")
 	}
 	defer os.Remove(f.Name())
 	defer f.Close()
@@ -219,7 +219,7 @@ func Update(ctx context.Context, path string, change func(*Config) error) error 
 		err = os.Rename(f.Name(), path)
 	}
 	if err != nil {
-		return invalid("No se pudo guardar la configuración.")
+		return invalid("Could not save configuration.")
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ func (c Config) Select(flag string, env func(string) string) (string, Profile, e
 	}
 	p, ok := c.Profiles[name]
 	if !ok {
-		return "", Profile{}, invalid("Selecciona un perfil existente o ejecuta auth login.")
+		return "", Profile{}, invalid("Select an existing profile or run auth login.")
 	}
 	if p.Auth.Email == "" {
 		p.Auth.Email = c.Email

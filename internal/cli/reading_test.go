@@ -39,7 +39,7 @@ func (f *cliReader) Search(_ context.Context, q domain.SearchRequest) (domain.Is
 		key = "APP-2"
 		id = "2"
 	}
-	return domain.IssuePage{Issues: []domain.Issue{{Ref: domain.IssueRef{ID: id, Key: key}, Summary: "Synthetic\x1b[31m summary\x1b[0m", Status: domain.Status{Name: "En progreso", Category: domain.CategoryInProgress}, URL: "https://example.atlassian.net/browse/" + key}}, Complete: complete, NextPageToken: "next"}, nil
+	return domain.IssuePage{Issues: []domain.Issue{{Ref: domain.IssueRef{ID: id, Key: key}, Summary: "Synthetic\x1b[31m summary\x1b[0m", Status: domain.Status{Name: "In progress", Category: domain.CategoryInProgress}, URL: "https://example.atlassian.net/browse/" + key}}, Complete: complete, NextPageToken: "next"}, nil
 }
 func (f *cliReader) GetIssue(_ context.Context, key domain.IssueRef, o domain.DetailOptions) (domain.IssueDetail, error) {
 	f.details++
@@ -103,7 +103,7 @@ func TestReadCLIQueriesTablesAndDefaults(t *testing.T) {
 	cursor := meta["next_page_token"].(string)
 	runReading(t, deps, []string{"mine", "--limit=1", "--page-token", cursor, "--format=json"}, 0)
 	_, table := runReading(t, deps, []string{"mine", "--all", "--format=table"}, 0)
-	if !strings.Contains(table, "CLAVE") || strings.Contains(table, "\x1b") || source.details != 0 {
+	if !strings.Contains(table, "KEY") || strings.Contains(table, "\x1b") || source.details != 0 {
 		t.Fatal(table)
 	}
 	runReading(t, deps, []string{"config", "set", "default_project", "APP", "--format=json"}, 0)

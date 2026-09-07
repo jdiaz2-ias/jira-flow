@@ -35,13 +35,13 @@ func run(ctx context.Context, path string, args []string, input string) ([]byte,
 }
 func unavailable(ctx context.Context) error {
 	if ctx.Err() != nil {
-		return &domain.Error{Kind: domain.Canceled, Message: "Operación cancelada."}
+		return &domain.Error{Kind: domain.Canceled, Message: "Operation canceled."}
 	}
-	return &domain.Error{Kind: domain.Authentication, Message: "Almacén de secretos no disponible o credencial ausente. Desbloquéalo o usa JFLOW_TOKEN/--token-stdin con --no-store."}
+	return &domain.Error{Kind: domain.Authentication, Message: "Secret store unavailable or credential missing. Unlock it or use JFLOW_TOKEN/--token-stdin with --no-store."}
 }
 func validate(ref ports.CredentialRef) error {
 	if !config.ValidRef(string(ref)) {
-		return &domain.Error{Kind: domain.InvalidInput, Message: "Referencia de credencial inválida."}
+		return &domain.Error{Kind: domain.InvalidInput, Message: "Invalid credential reference."}
 	}
 	return nil
 }
@@ -82,14 +82,14 @@ func (s *Store) Set(ctx context.Context, ref ports.CredentialRef, secret ports.S
 	}
 	value := secret.Reveal()
 	if value == "" || len(value) > 1500 || strings.ContainsAny(value, "\x00\r\n") {
-		return &domain.Error{Kind: domain.InvalidInput, Message: "Token no persistible: máximo 1500 bytes, sin saltos de línea. Usa modo efímero para tokens mayores."}
+		return &domain.Error{Kind: domain.InvalidInput, Message: "Token is not persistable: maximum 1500 bytes, no line breaks. Use ephemeral mode for larger tokens."}
 	}
 	var err error
 	switch s.OS {
 	case "darwin":
 		command := fmt.Sprintf("add-generic-password -U -s jflow -a %s -w %s\n", ref, hex.EncodeToString([]byte(value)))
 		if len(command) >= 4096 {
-			return &domain.Error{Kind: domain.InvalidInput, Message: "Token demasiado grande para Keychain."}
+			return &domain.Error{Kind: domain.InvalidInput, Message: "Token too large for Keychain."}
 		}
 		_, err = s.Run(ctx, "/usr/bin/security", []string{"-i"}, command)
 		// Interactive security may exit successfully after reporting a failed command.

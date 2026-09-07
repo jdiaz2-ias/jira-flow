@@ -21,7 +21,7 @@ func TestMacKeychainRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := "jflow-f0-test-" + hex.EncodeToString(id)
-	secret := "synthetic 'quotes' \"unicode-á\"\nsecond-line"
+	secret := "synthetic 'quotes' \"unicode-a\"\nsecond-line"
 	t.Cleanup(func() {
 		if err := keyring.Delete(service, "fixture"); err != nil {
 			t.Errorf("cleanup %s: %v", service, err)

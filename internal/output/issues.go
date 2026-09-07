@@ -159,13 +159,13 @@ func Rows(r app.SearchResult, table bool) string {
 	clean := func(s string) string { return domain.CleanText(s, false) }
 	if table {
 		w := tabwriter.NewWriter(&b, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "CLAVE\tESTADO\tPRIORIDAD\tASIGNADO\tRESUMEN")
+		fmt.Fprintln(w, "KEY\tSTATUS\tPRIORITY\tASSIGNEE\tSUMMARY")
 		for _, i := range r.Issues {
 			priority := "-"
 			if i.Priority != nil {
 				priority = i.Priority.Name
 			}
-			assignee := "Sin asignar"
+			assignee := "Unassigned"
 			if i.Assignee != nil {
 				assignee = i.Assignee.DisplayName
 			}
@@ -178,16 +178,16 @@ func Rows(r app.SearchResult, table bool) string {
 		}
 	}
 	if len(r.Issues) == 0 {
-		b.WriteString("Sin resultados.\n")
+		b.WriteString("No results.\n")
 	}
 	if !r.Meta.Complete {
-		fmt.Fprintf(&b, "Resultado incompleto: %d issues cargados; total desconocido.\n", len(r.Issues))
+		fmt.Fprintf(&b, "Incomplete result: %d issues loaded; total unknown.\n", len(r.Issues))
 		if r.Meta.NextPageToken != "" {
-			fmt.Fprintf(&b, "Continúa con --page-token '%s'\n", r.Meta.NextPageToken)
+			fmt.Fprintf(&b, "Continue with --page-token '%s'\n", r.Meta.NextPageToken)
 		}
 	}
 	if r.Meta.Stale {
-		b.WriteString("Datos de memoria vencidos.\n")
+		b.WriteString("In-memory data expired.\n")
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }
@@ -227,61 +227,61 @@ func DetailText(r app.DetailResult) string {
 	}
 	var b strings.Builder
 	clean := func(s string) string { return domain.CleanText(s, false) }
-	fmt.Fprintf(&b, "%s  %s\nEstado: %s (%s)\n", d.Issue.Ref.Key, clean(d.Issue.Summary), clean(d.Issue.Status.Name), d.Issue.Status.Category)
-	resolution := "Sin resolución"
+	fmt.Fprintf(&b, "%s  %s\nStatus: %s (%s)\n", d.Issue.Ref.Key, clean(d.Issue.Summary), clean(d.Issue.Status.Name), d.Issue.Status.Category)
+	resolution := "No resolution"
 	if d.Issue.Resolution != nil {
 		resolution = clean(d.Issue.Resolution.Name)
 	}
-	fmt.Fprintf(&b, "Resolución: %s\n%s\n", resolution, d.Issue.URL)
+	fmt.Fprintf(&b, "Resolution: %s\n%s\n", resolution, d.Issue.URL)
 	if text := BlocksText(d.Description); text != "" {
-		fmt.Fprintf(&b, "\nDescripción:\n%s\n", text)
+		fmt.Fprintf(&b, "\nDescription:\n%s\n", text)
 	}
 	if len(d.Subtasks) > 0 {
-		b.WriteString("\nSubtareas visibles:\n")
+		b.WriteString("\nVisible subtasks:\n")
 		for _, i := range d.Subtasks {
 			fmt.Fprintf(&b, "%s  [%s]  %s\n", i.Ref.Key, clean(i.Status.Name), clean(i.Summary))
 		}
 	}
 	if len(d.Links) > 0 {
-		b.WriteString("\nEnlaces:\n")
+		b.WriteString("\nLinks:\n")
 		for _, link := range d.Links {
 			fmt.Fprintf(&b, "%s: %s\n", clean(link.Type), link.Target.Key)
 		}
 	}
 	if d.Comments != nil {
-		b.WriteString("\nComentarios:\n")
+		b.WriteString("\nComments:\n")
 		for _, c := range d.Comments.Items {
-			name := "Autor desconocido"
+			name := "Unknown author"
 			if c.Author != nil {
 				name = clean(c.Author.DisplayName)
 			}
 			fmt.Fprintf(&b, "[%s] %s\n%s\n", clean(c.ID), name, BlocksText(c.Body))
 		}
 		if !d.Comments.Complete {
-			b.WriteString("Comentarios incompletos.")
+			b.WriteString("Incomplete comments.")
 			if d.Comments.NextStart != nil {
-				fmt.Fprintf(&b, " Continúa con --comments-start %d", *d.Comments.NextStart)
+				fmt.Fprintf(&b, " Continue with --comments-start %d", *d.Comments.NextStart)
 			}
 			b.WriteByte('\n')
 		}
 	}
 	if d.History != nil {
-		b.WriteString("\nHistorial:\n")
+		b.WriteString("\nHistory:\n")
 		for _, h := range d.History.Items {
 			for _, change := range h.Changes {
 				fmt.Fprintf(&b, "[%s] %s: %s -> %s\n", clean(h.ID), clean(change.Field), clean(change.From), clean(change.To))
 			}
 		}
 		if !d.History.Complete {
-			b.WriteString("Historial incompleto.")
+			b.WriteString("Incomplete history.")
 			if d.History.NextStart != nil {
-				fmt.Fprintf(&b, " Continúa con --history-start %d", *d.History.NextStart)
+				fmt.Fprintf(&b, " Continue with --history-start %d", *d.History.NextStart)
 			}
 			b.WriteByte('\n')
 		}
 	}
 	for _, warning := range d.Warnings {
-		fmt.Fprintf(&b, "Aviso: %s\n", warning)
+		fmt.Fprintf(&b, "Warning: %s\n", warning)
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }

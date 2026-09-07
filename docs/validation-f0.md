@@ -1,44 +1,44 @@
-# Validación F0
+# Validation F0
 
-Fecha: 2026-09-06. Entorno de ejecución: Linux Mint 22.3, amd64. Toolchain: Go 1.27.1 instalado en el directorio local del usuario, sin modificar archivos de inicio del shell. El archivo oficial se verificó por SHA-256 antes de extraerlo.
+Date: 2026-09-06. Execution environment: Linux Mint 22.3, amd64. Toolchain: Go 1.27.1 installed in the user's local directory, without modifying shell startup files. The official archive was verified by SHA-256 before extraction.
 
-## Resultados registrados
+## Recorded results
 
-| Comprobación | Resultado |
+| Check | Result |
 | --- | --- |
-| `make check` | Pasa: formato, vet, pruebas CLI/contratos/proceso/capas y auditoría keyring |
-| `make test-race` | Pasa en Linux amd64; la prueba de CLI se repitió tras su ajuste final |
-| `go mod verify` | Todos los módulos verificados |
-| `make build` | Produce `bin/jflow`, ejecutado en este equipo |
-| `make build-all` | Compila las cuatro plataformas, tanto CLI como imports `foundation` |
-| `jflow --help` | Solo muestra ayuda y versión como comandos actuales |
-| `jflow version --format=json` | JSON v1 válido con metadatos del binario |
-| govulncheck 1.7.0 | Sin vulnerabilidades encontradas; ejecutado también con `-tags=foundation` |
-| Fixtures | Nueve JSON sintéticos parseables |
+| `make check` | Passes: format, vet, CLI/contract/process/layer tests, and keyring audit |
+| `make test-race` | Passes on Linux amd64; CLI test was repeated after its final adjustment |
+| `go mod verify` | All modules verified |
+| `make build` | Produces `bin/jflow`, executed on this machine |
+| `make build-all` | Compiles the four platforms, both CLI and `foundation` imports |
+| `jflow --help` | Only shows help and version as current commands |
+| `jflow version --format=json` | Valid JSON v1 with binary metadata |
+| govulncheck 1.7.0 | No vulnerabilities found; also run with `-tags=foundation` |
+| Fixtures | Nine synthetic JSONs parseable |
 
-Se ejecutaron diez funciones de prueba en Linux, una de ellas con diecisiete casos de argumentos/salida. Las comprobaciones incluyen un proceso real de `jflow`, estados de salida, un solo documento JSON, redacción de secretos, fallos de escritura y ausencia de imports de UI/proveedor en el núcleo.
+Ten test functions were executed on Linux, one of them with seventeen argument/output cases. Checks include a real `jflow` process, exit states, a single JSON document, secret redaction, write failures, and absence of UI/provider imports in the core.
 
-La primera ejecución de la auditoría de fuente necesitó completar metadatos del módulo mediante `go mod download`; después pasó sin llamadas al keyring. Los resultados de seguridad corresponden a la base consultada en esta fecha, no a una garantía futura.
+The first run of the source audit needed to complete module metadata via `go mod download`; afterward it passed without calling the keyring. Security results correspond to the database consulted on this date, not a future guarantee.
 
-## Matriz observada
+## Observed matrix
 
-| Objetivo | Compilación CLI + foundation | Ejecución del binario | Keyring real |
+| Target | CLI + foundation compilation | Binary execution | Real keyring |
 | --- | --- | --- | --- |
-| Linux amd64 | Sí | Sí | No utilizado en F0 |
-| Linux arm64 | Sí | No | No |
-| macOS amd64 | Sí | No | No |
-| macOS arm64 | Sí | No | No |
+| Linux amd64 | Yes | Yes | Not used in F0 |
+| Linux arm64 | Yes | No | No |
+| macOS amd64 | Yes | No | No |
+| macOS arm64 | Yes | No | No |
 
-`file` identifica los dos binarios Linux como ELF estáticos y los de macOS como Mach-O de su arquitectura. CGO está desactivado para estos builds; macOS sigue dependiendo de componentes del sistema operativo.
+`file` identifies the two Linux binaries as static ELF and the macOS ones as Mach-O for their architecture. CGO is disabled for these builds; macOS still depends on operating-system components.
 
-## Límites explícitos
+## Explicit limits
 
-- El workflow de CI está creado, pero no se ha ejecutado en GitHub: el repositorio es local.
-- La viabilidad de SecretStore macOS se revisó en fuente y mediante una prueba estructural. La prueba opt-in real queda preparada para un Mac con keychain desbloqueado.
-- No hay tenant Jira ni credenciales configuradas; F0 no envía solicitudes Jira.
-- Autenticación, TUI, caché, workflows ejecutables y empaquetado de releases pertenecen a fases posteriores.
+- The CI workflow is created, but has not been run on GitHub: the repository is local.
+- macOS SecretStore viability was reviewed in source and via a structural test. The opt-in real test is prepared for a Mac with unlocked keychain.
+- No Jira tenant or credentials are configured; F0 does not send Jira requests.
+- Authentication, TUI, cache, executable workflows, and release packaging belong to later phases.
 
-## Reproducción
+## Reproduction
 
 ```bash
 export PATH="$HOME/.local/share/jira-flow/toolchains/go1.27.1/bin:$PATH"
@@ -49,4 +49,4 @@ make security
 ./bin/jflow version --format=json
 ```
 
-En otros equipos, instalar la versión fijada de Go y omitir el export específico de esta instalación.
+On other machines, install the pinned Go version and omit the export specific to this installation.

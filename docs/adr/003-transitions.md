@@ -1,7 +1,7 @@
-# ADR-003: intenciones y transiciones separadas
+# ADR-003: separate intents and transitions
 
-Estado: aceptada. Fecha: 2026-09-06.
+Status: accepted. Date: 2026-09-06.
 
-Decisión: representar start/done/close/reopen como intenciones. Preparar con metadatos frescos, resolver por regla o elección y revalidar antes de aplicar. Un resultado incierto no equivale a rechazo ni a éxito confirmado.
+Decision: represent start/done/close/reopen as intents. Prepare with fresh metadata, resolve by rule or choice, and revalidate before applying. An uncertain result is neither rejection nor confirmed success.
 
-Consecuencia: se necesitan formularios y errores explícitos; cerrar puede diferir de completar. El dominio ya expresa esos estados, pero F3 implementará el resolver. No se actualiza `fields.status` de manera arbitraria ni se simula idempotencia.
+Consequence: explicit forms and errors are needed; close may differ from complete. The domain already expresses those states, but F3 will implement the resolver. Do not arbitrarily update `fields.status` or simulate idempotence.

@@ -1,7 +1,7 @@
-# ADR-002: Jira Cloud como primer proveedor
+# ADR-002: Jira Cloud as first provider
 
-Estado: aceptada. Fecha: 2026-09-06.
+Status: accepted. Date: 2026-09-06.
 
-Decisión: REST v3 con puertos `IssueReader` y `TransitionGateway`; rutas y DTOs vivirán en `provider/jiracloud`. Búsqueda mejorada POST `/search/jql` con cursor. La base REST se deriva del tipo de token y el enlace humano siempre usa el sitio.
+Decision: REST v3 with `IssueReader` and `TransitionGateway` ports; routes and DTOs will live in `provider/jiracloud`. Enhanced POST `/search/jql` with cursor. The REST base is derived from the token type and the human link always uses the site.
 
-Consecuencia: Data Center requiere otro adaptador y pruebas; no habrá fallback por un 404 ni sustitución automática de v3 por v2. Ninguna llamada HTTP forma parte de F0.
+Consequence: Data Center requires another adapter and tests; there will be no fallback for a 404 nor automatic substitution of v3 by v2. No HTTP call is part of F0.

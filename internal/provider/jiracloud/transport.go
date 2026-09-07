@@ -27,13 +27,13 @@ func (c *Client) read(ctx context.Context, p config.Profile, secret ports.Secret
 		return nil, err
 	}
 	if secret.Reveal() == "" {
-		return nil, failure(domain.Authentication, "Falta la credencial Jira.")
+		return nil, failure(domain.Authentication, "Jira credential is missing.")
 	}
 	var payload []byte
 	if body != nil {
 		payload, err = json.Marshal(body)
 		if err != nil {
-			return nil, failure(domain.InvalidInput, "Solicitud inválida.")
+			return nil, failure(domain.InvalidInput, "Invalid request.")
 		}
 	}
 	client := *c.HTTP
@@ -41,7 +41,7 @@ func (c *Client) read(ctx context.Context, p config.Profile, secret ports.Secret
 	for attempt := 0; attempt < 3; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, method, base+path, bytes.NewReader(payload))
 		if err != nil {
-			return nil, failure(domain.InvalidInput, "Solicitud inválida.")
+			return nil, failure(domain.InvalidInput, "Invalid request.")
 		}
 		req.SetBasicAuth(p.Auth.Email, secret.Reveal())
 		req.Header.Set("Accept", "application/json")
@@ -51,10 +51,10 @@ func (c *Client) read(ctx context.Context, p config.Profile, secret ports.Secret
 		resp, err := client.Do(req)
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, failure(domain.Canceled, "Operación cancelada o plazo agotado.")
+				return nil, failure(domain.Canceled, "Operation cancelled or deadline exceeded.")
 			}
 			if attempt == 2 {
-				return nil, failure(domain.Unavailable, "No se pudo conectar con Jira; comprueba red, proxy y certificados.")
+				return nil, failure(domain.Unavailable, "Could not connect to Jira; check network, proxy and certificates.")
 			}
 			if err = c.pause(ctx, "", attempt); err != nil {
 				return nil, err
@@ -74,38 +74,38 @@ func (c *Client) read(ctx context.Context, p config.Profile, secret ports.Secret
 			resp.Body.Close()
 			switch {
 			case resp.StatusCode == 400:
-				return nil, failure(domain.InvalidInput, "Jira rechazó la consulta o los campos; comprueba el JQL y los filtros.")
+				return nil, failure(domain.InvalidInput, "Jira rejected the query or fields; check the JQL and filters.")
 			case resp.StatusCode == 401:
-				return nil, failure(domain.Authentication, "Jira rechazó la credencial; comprueba vencimiento o revocación del token.")
+				return nil, failure(domain.Authentication, "Jira rejected the credential; check token expiry or revocation.")
 			case resp.StatusCode == 403:
-				return nil, failure(domain.Forbidden, "Jira denegó la lectura; comprueba permisos y scopes.")
+				return nil, failure(domain.Forbidden, "Jira denied the read; check permissions and scopes.")
 			case resp.StatusCode == 404:
-				return nil, failure(domain.NotFound, "El issue no existe o no es visible para esta cuenta.")
+				return nil, failure(domain.NotFound, "The issue does not exist or is not visible to this account.")
 			case resp.StatusCode == 409:
-				return nil, failure(domain.Conflict, "Jira detectó un conflicto; vuelve a consultar.")
+				return nil, failure(domain.Conflict, "Jira detected a conflict; query again.")
 			case resp.StatusCode >= 300 && resp.StatusCode < 400:
-				return nil, failure(domain.Forbidden, "Se rechazó una redirección autenticada de Jira.")
+				return nil, failure(domain.Forbidden, "An authenticated Jira redirect was rejected.")
 			default:
-				return nil, failure(domain.Unavailable, "Jira no está disponible o limitó las solicitudes; intenta más tarde.")
+				return nil, failure(domain.Unavailable, "Jira is unavailable or has limited requests; try again later.")
 			}
 		}
 		b, err := io.ReadAll(io.LimitReader(resp.Body, 4*1024*1024+1))
 		resp.Body.Close()
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, failure(domain.Canceled, "Operación cancelada o plazo agotado.")
+				return nil, failure(domain.Canceled, "Operation cancelled or deadline exceeded.")
 			}
-			return nil, failure(domain.Unavailable, "No se pudo leer la respuesta Jira.")
+			return nil, failure(domain.Unavailable, "Could not read Jira response.")
 		}
 		if len(b) > 4*1024*1024 {
-			return nil, failure(domain.Unavailable, "La respuesta Jira supera 4 MiB.")
+			return nil, failure(domain.Unavailable, "The Jira response exceeds 4 MiB.")
 		}
 		if !json.Valid(b) {
-			return nil, failure(domain.Unavailable, "Respuesta JSON inválida; comprueba si existe un proxy o una página de login.")
+			return nil, failure(domain.Unavailable, "Invalid JSON response; check whether a proxy or login page exists.")
 		}
 		return b, nil
 	}
-	return nil, failure(domain.Unavailable, "No se pudo completar la lectura Jira.")
+	return nil, failure(domain.Unavailable, "Could not complete the Jira read.")
 }
 func (c *Client) pause(ctx context.Context, retryAfter string, attempt int) error {
 	delay := time.Duration(100*(1<<attempt)+rand.IntN(100)) * time.Millisecond
@@ -120,14 +120,14 @@ func (c *Client) pause(ctx context.Context, retryAfter string, attempt int) erro
 		}
 	}
 	if deadline, ok := ctx.Deadline(); ok && delay >= time.Until(deadline) {
-		return failure(domain.Unavailable, fmt.Sprintf("Jira solicita esperar %d segundos; aumenta --timeout o reintenta después.", int64(delay.Seconds())+1))
+		return failure(domain.Unavailable, fmt.Sprintf("Jira asks to wait %d seconds; increase --timeout or retry later.", int64(delay.Seconds())+1))
 	}
 	if delay > 30*time.Second {
-		return failure(domain.Unavailable, "Jira solicita una espera prolongada; reintenta más tarde.")
+		return failure(domain.Unavailable, "Jira requires a long wait; retry later.")
 	}
 	if c.Sleep != nil {
 		if err := c.Sleep(ctx, delay); err != nil {
-			return failure(domain.Canceled, "Operación cancelada o plazo agotado.")
+			return failure(domain.Canceled, "Operation cancelled or deadline exceeded.")
 		}
 		return nil
 	}
@@ -135,7 +135,7 @@ func (c *Client) pause(ctx context.Context, retryAfter string, attempt int) erro
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
-		return failure(domain.Canceled, "Operación cancelada o plazo agotado.")
+		return failure(domain.Canceled, "Operation cancelled or deadline exceeded.")
 	case <-timer.C:
 		return nil
 	}

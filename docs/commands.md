@@ -1,41 +1,41 @@
-# Contrato CLI de F2
+# F2 CLI contract
 
-| Comando | Comportamiento |
+| Command | Behavior |
 | --- | --- |
-| `version` | Versión, sin red ni configuración |
-| `auth login` | Valida `myself`, guarda perfil y opcionalmente credencial |
-| `auth status` | Comprueba disponibilidad local del token; no valida con Jira |
-| `auth logout` | Elimina perfil y credenciales locales; no revoca en Atlassian |
-| `profile list` | Lista perfiles y marca el activo persistido |
-| `profile use NOMBRE` | Cambia perfil activo |
-| `me` | Consulta y muestra identidad Jira |
-| `doctor` | Comprueba configuración, fuente de credencial, identidad, conectividad y stdin TTY |
-| `config path` | Muestra ruta de configuración |
-| `config validate` | Valida esquema sin mostrar contenido |
+| `version` | Version; no network or configuration |
+| `auth login` | Validates `myself`, saves profile and optionally credential |
+| `auth status` | Checks local token availability; does not validate with Jira |
+| `auth logout` | Removes local profile and credentials; does not revoke in Atlassian |
+| `profile list` | Lists profiles and marks the persisted active one |
+| `profile use NAME` | Changes active profile |
+| `me` | Queries and displays Jira identity |
+| `doctor` | Checks configuration, credential source, identity, connectivity, and stdin TTY |
+| `config path` | Shows configuration path |
+| `config validate` | Validates schema without showing content |
 
-`--profile` selecciona temporalmente un perfil; `--email` cambia el correo de esa invocación. Precedencia: flags > `JFLOW_PROFILE`/`JFLOW_EMAIL` > perfil > correo global. `auth login` guarda el perfil validado y lo activa. Solo se conserva el correo de entorno al hacer un login explícito.
+`--profile` temporarily selects a profile; `--email` changes the email for that invocation. Precedence: flags > `JFLOW_PROFILE`/`JFLOW_EMAIL` > profile > global email. `auth login` saves the validated profile and activates it. Only the environment email is kept when performing an explicit login.
 
-`auth login` recibe `--site`, `--method=api-token-unscoped|api-token-scoped`, `--cloud-id`, `--token-stdin` y `--no-store`. En un terminal puede solicitar datos faltantes y token oculto. `--no-input`, `JFLOW_NO_INPUT=1` o `JFLOW_NO_INPUT=true` desactivan las preguntas; stdin explícito continúa permitido. `me` y `doctor` también aceptan `--token-stdin`.
+`auth login` accepts `--site`, `--method=api-token-unscoped|api-token-scoped`, `--cloud-id`, `--token-stdin`, and `--no-store`. In a terminal it can prompt for missing data and hidden token. `--no-input`, `JFLOW_NO_INPUT=1`, or `JFLOW_NO_INPUT=true` disable questions; explicit stdin remains allowed. `me` and `doctor` also accept `--token-stdin`.
 
-La credencial explícita de stdin tiene precedencia sobre `JFLOW_TOKEN`, y esta sobre el llavero. Un token de entorno nunca se persiste automáticamente. Sin llavero, usar `--no-store` y suministrar nuevamente la credencial en cada invocación. Nunca se acepta `--token VALOR`.
+Explicit stdin credential takes precedence over `JFLOW_TOKEN`, which takes precedence over the keyring. An environment token is never persisted automatically. Without a keyring, use `--no-store` and supply the credential again on each invocation. `--token VALUE` is never accepted.
 
-`--format=json` produce un solo objeto con `schema_version`, `ok`, `data`, `meta`, `warnings` y `error`. Puede ir antes o después del subcomando. La ayuda JSON está en `data.help`; `jflow help auth login` funciona. La salida normal usa texto sin colores.
+`--format=json` produces a single object with `schema_version`, `ok`, `data`, `meta`, `warnings`, and `error`. It can go before or after the subcommand. JSON help is in `data.help`; `jflow help auth login` works. Normal output is plain text, no colors.
 
-- Sin subcomando: código 2; todavía no hay TUI automática.
-- Argumentos/configuración inválidos: 2; autenticación: 3; permisos: 4; no encontrado: 5; servicio no disponible: 8; cancelación: 130.
-- `plain` o `json`; F2 admite también `table` en listados. Se respeta la última aparición de `--format`; `--` termina las opciones.
-- Fallos de escritura: código 1, nunca éxito.
-- Los diagnósticos de parseo no repiten argumentos arbitrarios; errores HTTP no incluyen cuerpos ni Authorization.
+- No subcommand: code 2; no automatic TUI yet.
+- Invalid arguments/configuration: 2; authentication: 3; permissions: 4; not found: 5; service unavailable: 8; cancellation: 130.
+- `plain` or `json`; F2 also supports `table` in listings. Last occurrence of `--format` wins; `--` ends options.
+- Write failures: code 1, never success.
+- Parse diagnostics do not repeat arbitrary arguments; HTTP errors do not include bodies or Authorization.
 
-`doctor` valida los permisos de identidad, no los de issues ni transiciones. Si usa entorno/stdin, indica `keyring_checked=false`; no afirma que el llavero funcione.
+`doctor` validates identity permissions, not issue or transition permissions. If it uses environment/stdin, it reports `keyring_checked=false`; it does not claim the keyring works.
 
-## F2: lectura de issues y enlaces
+## F2: issue reading and links
 
 ```bash
 jflow mine --format table
 jflow mine --project APP --status-category in-progress --sort=-priority,-updated
 jflow mine --include-done --updated-since=-7d --limit 20
-jflow config set default_project APP --profile trabajo
+jflow config set default_project APP --profile work
 jflow list --type Bug
 jflow search --jql 'project = APP AND priority = High ORDER BY updated DESC' --all --format json
 jflow show APP-123
@@ -44,16 +44,16 @@ jflow link APP-123
 jflow open APP-123
 ```
 
-`mine` utiliza `currentUser()` y excluye categoría Done, salvo `--include-done` o una categoría explícita. `list` necesita un proyecto predeterminado o filtro explícito. Proyecto: `--project` > `JFLOW_PROJECT` > `default_project` del perfil. `search --jql` no hereda ese proyecto ni admite filtros estructurados. `--sort` permite `updated`, `created`, `priority`, `key`, `due`, separados por coma; el prefijo `-` indica descendente. Siempre hay un desempate por clave.
+`mine` uses `currentUser()` and excludes Done category unless `--include-done` or an explicit category is used. `list` needs a default project or explicit filter. Project: `--project` > `JFLOW_PROJECT` > profile `default_project`. `search --jql` does not inherit that project nor structured filters. `--sort` accepts `updated`, `created`, `priority`, `key`, `due`, comma-separated; prefix `-` means descending. There is always a key tiebreaker.
 
-`--fields` selecciona entre `summary,status,assignee,priority,issuetype,project,updated,duedate,resolution`; los datos no solicitados quedan desconocidos. Clave e ID vienen del resultado Jira. No hay una solicitud por fila.
+`--fields` selects from `summary,status,assignee,priority,issuetype,project,updated,duedate,resolution`; unrequested data remains unknown. Key and ID come from the Jira result. There is no per-row request.
 
-Paginación de búsqueda: `--limit 50`, `--page-size 50`, `--all`, `--max-results 5000`, `--page-token CURSOR`. `--all` y `--limit` son incompatibles. Un límite normal produce éxito con `meta.complete=false`; fallo posterior o tope de `--all` devuelve código 10 conservando los datos. JSON incluye `meta.returned` y `meta.next_page_token`; el cursor se reutiliza con el mismo perfil, JQL y campos. No hay total global inferido.
+Search pagination: `--limit 50`, `--page-size 50`, `--all`, `--max-results 5000`, `--page-token CURSOR`. `--all` and `--limit` are incompatible. A normal limit succeeds with `meta.complete=false`; later failure or `--all` cap returns code 10, preserving data. JSON includes `meta.returned` and `meta.next_page_token`; the cursor is reused with the same profile, JQL, and fields. There is no inferred global total.
 
-`show` carga descripción, subtareas y vínculos. `--comments` y `--history` habilitan sus endpoints; `--page-size` controla la solicitud y `--section-limit` el total por sección. `--all` recorre las secciones solicitadas hasta 5000 elementos por defecto. Para continuar, usa `--comments-start`/`--history-start` con el `next_start` de cada sección. Un fallo de sección conserva el detalle en JSON y devuelve código 10.
+`show` loads description, subtasks, and links. `--comments` and `--history` enable their endpoints; `--page-size` controls the request and `--section-limit` the total per section. `--all` walks requested sections up to 5000 items by default. To continue, use `--comments-start`/`--history-start` with each section's `next_start`. A section failure preserves detail in JSON and returns code 10.
 
-Lecturas: `--timeout 30s` (hasta 10m), `--token-stdin`, `--refresh`, `--offline`. Caché solo en memoria del proceso: no sobrevive a otra ejecución de `jflow`; offline sin entrada devuelve código 5. Listados duran 60 s y detalles 30 s. Un 401/403 no se sustituye por datos viejos. El transporte reintenta lecturas transitorias hasta tres envíos y respeta Retry-After dentro del presupuesto de tiempo.
+Read flags: `--timeout 30s` (up to 10m), `--token-stdin`, `--refresh`, `--offline`. Cache is per-process memory only: it does not survive another `jflow` invocation; offline with no input returns code 5. Listings last 60 s and details 30 s. A 401/403 is not replaced by old data. Transport retries transient reads up to three sends and respects Retry-After within the time budget.
 
-`table` se admite en `mine`, `list` y `search`; otros comandos aceptan plain/JSON. `--no-color` y `--ascii` mantienen la salida sin adornos; no alteran el contenido Unicode de Jira. `--verbose` informa el comando por stderr sin tokens, cuerpos ni JQL. JSON implica `--no-input`.
+`table` is supported in `mine`, `list`, and `search`; other commands accept plain/JSON. `--no-color` and `--ascii` keep output unadorned; they do not alter Unicode content from Jira. `--verbose` prints the command to stderr without tokens, bodies, or JQL. JSON implies `--no-input`.
 
-`link` usa la URL navegable del sitio y no consulta Jira ni el llavero. En texto imprime exclusivamente URL y salto de línea. `open` usa `/usr/bin/open` en macOS o `xdg-open` en Linux sin shell; si no hay sesión gráfica/lanzador, devuelve código 11 y conserva la URL.
+`link` uses the browsable site URL and does not query Jira or the keyring. In text it prints only the URL and a newline. `open` uses `/usr/bin/open` on macOS or `xdg-open` on Linux without a shell; if there is no graphical session/launcher, it returns code 11 and keeps the URL.

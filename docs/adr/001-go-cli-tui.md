@@ -1,9 +1,9 @@
-# ADR-001: Go y entradas CLI/TUI compartidas
+# ADR-001: Go and shared CLI/TUI inputs
 
-Estado: aceptada para F0. Fecha: 2026-09-06.
+Status: accepted for F0. Date: 2026-09-06.
 
-Decisión: usar Go 1.27.1, Cobra y Charm v2. El dominio/casos de uso no importan frameworks de presentación. TUI y CLI comparten servicios futuros.
+Decision: use Go 1.27.1, Cobra, and Charm v2. Domain/use cases do not import presentation frameworks. TUI and CLI share future services.
 
-Consecuencia: entrega como binario, compilación cruzada y pruebas sin terminal. F0 solo registra comandos funcionales. El tag foundation comprueba las dependencias de la futura TUI sin iniciarla ni incluirlas en el ejecutable normal.
+Consequence: deliver as a binary, cross-compilation, and tests without a terminal. F0 only logs functional commands. The foundation tag checks future TUI dependencies without starting it or including them in the normal executable.
 
-El módulo es `jira-flow.local/jflow`, provisional hasta conocer repositorio/propietario de publicación. No se asigna un remoto inventado.
+The module is `jira-flow.local/jflow`, provisional until the publication repository/owner is known. No invented remote is assigned.

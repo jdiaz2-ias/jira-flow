@@ -23,21 +23,21 @@ type memoryStore struct {
 func (s *memoryStore) Get(_ context.Context, r ports.CredentialRef) (ports.Secret, error) {
 	v, ok := s.values[r]
 	if !ok || s.fail {
-		return ports.Secret{}, problem(domain.Authentication, "Llavero bloqueado.")
+		return ports.Secret{}, problem(domain.Authentication, "Keyring locked.")
 	}
 	return v, nil
 }
 func (s *memoryStore) Set(_ context.Context, r ports.CredentialRef, v ports.Secret) error {
 	s.sets++
 	if s.fail {
-		return problem(domain.Authentication, "Llavero bloqueado.")
+		return problem(domain.Authentication, "Keyring locked.")
 	}
 	s.values[r] = v
 	return nil
 }
 func (s *memoryStore) Delete(_ context.Context, r ports.CredentialRef) error {
 	if s.fail || s.failDelete {
-		return problem(domain.Authentication, "Llavero bloqueado.")
+		return problem(domain.Authentication, "Keyring locked.")
 	}
 	delete(s.values, r)
 	return nil
@@ -53,7 +53,7 @@ func authFixture(t *testing.T) (Access, *memoryStore) {
 	store := &memoryStore{values: map[ports.CredentialRef]ports.Secret{}}
 	return Access{Path: filepath.Join(t.TempDir(), "config.json"), Env: func(string) string { return "" }, Secrets: store, Jira: identityFunc(func(ctx context.Context, p config.Profile, s ports.Secret) (domain.User, error) {
 		if s.Reveal() == "bad" {
-			return domain.User{}, problem(domain.Authentication, "Credencial inválida.")
+			return domain.User{}, problem(domain.Authentication, "Invalid credential.")
 		}
 		return domain.User{ID: p.Auth.Email, DisplayName: "Synthetic"}, nil
 	})}, store

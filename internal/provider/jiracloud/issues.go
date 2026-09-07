@@ -94,7 +94,7 @@ func user(n *wireUser, clean func(string) string) *domain.User {
 func (s *Session) issue(w wireIssue) (domain.Issue, error) {
 	key, err := domain.IssueKey(w.Key)
 	if err != nil || w.ID == "" {
-		return domain.Issue{}, failure(domain.Unavailable, "Jira devolvió un issue sin identificador o clave válidos.")
+		return domain.Issue{}, failure(domain.Unavailable, "Jira returned an issue without a valid identifier or key.")
 	}
 	clean := cleanRemote(s.Profile, s.Secret)
 	category, ok := map[string]domain.StatusCategory{"new": domain.CategoryTodo, "indeterminate": domain.CategoryInProgress, "done": domain.CategoryDone}[w.Fields.Status.Category.Key]
@@ -117,7 +117,7 @@ func (s *Session) issue(w wireIssue) (domain.Issue, error) {
 func (s *Session) Search(ctx context.Context, q domain.SearchRequest) (domain.IssuePage, error) {
 	result := domain.IssuePage{Issues: []domain.Issue{}}
 	if q.PageSize < 1 || q.PageSize > 100 || len(q.PageToken) > 32768 {
-		return result, failure(domain.InvalidInput, "Tamaño de página o cursor inválido.")
+		return result, failure(domain.InvalidInput, "Invalid page size or cursor.")
 	}
 	fields := q.Fields
 	if len(fields) == 0 {
@@ -131,7 +131,7 @@ func (s *Session) Search(ctx context.Context, q domain.SearchRequest) (domain.Is
 			}
 		}
 		if !allowed {
-			return result, failure(domain.InvalidInput, "Campo de listado no permitido.")
+			return result, failure(domain.InvalidInput, "List field not allowed.")
 		}
 	}
 	body := struct {
@@ -150,7 +150,7 @@ func (s *Session) Search(ctx context.Context, q domain.SearchRequest) (domain.Is
 		Last   *bool       `json:"isLast"`
 	}
 	if json.Unmarshal(b, &page) != nil || page.Issues == nil || len(page.Issues) > 100 || len(page.Next) > 32768 {
-		return result, failure(domain.Unavailable, "Página de búsqueda Jira inválida.")
+		return result, failure(domain.Unavailable, "Invalid Jira search page.")
 	}
 	for _, w := range page.Issues {
 		issue, err := s.issue(w)
@@ -162,12 +162,12 @@ func (s *Session) Search(ctx context.Context, q domain.SearchRequest) (domain.Is
 	result.Complete = page.Last != nil && *page.Last
 	result.NextPageToken = page.Next
 	if page.Last == nil && page.Next == "" {
-		return result, failure(domain.Unavailable, "Jira no indicó si la página está completa.")
+		return result, failure(domain.Unavailable, "Jira did not indicate whether the page is complete.")
 	}
 	if result.Complete {
 		result.NextPageToken = ""
 	} else if result.NextPageToken == "" {
-		return result, failure(domain.Unavailable, "Jira indicó más resultados sin proporcionar cursor.")
+		return result, failure(domain.Unavailable, "Jira indicated more results but provided no cursor.")
 	}
 	return result, nil
 }
@@ -193,7 +193,7 @@ func (s *Session) GetIssue(ctx context.Context, ref domain.IssueRef, options dom
 	}
 	var w wireIssue
 	if json.Unmarshal(b, &w) != nil {
-		return result, failure(domain.Unavailable, "Detalle Jira inválido.")
+		return result, failure(domain.Unavailable, "Invalid Jira detail.")
 	}
 	result.Issue, err = s.issue(w)
 	if err != nil {
@@ -209,7 +209,7 @@ func (s *Session) GetIssue(ctx context.Context, ref domain.IssueRef, options dom
 			issue, e := s.issue(sub)
 			if e != nil {
 				result.SubtasksComplete = false
-				result.Warnings = append(result.Warnings, "Jira devolvió una subtarea incompleta.")
+				result.Warnings = append(result.Warnings, "Jira returned an incomplete subtask.")
 				continue
 			}
 			result.Subtasks = append(result.Subtasks, issue)
@@ -254,5 +254,5 @@ func partialDetail(err error) error {
 	if errors.As(err, &public) && public.Kind == domain.Canceled {
 		return err
 	}
-	return &domain.Error{Kind: domain.Partial, Message: "El issue se cargó, pero una sección solicitada quedó incompleta: " + err.Error(), Cause: err}
+	return &domain.Error{Kind: domain.Partial, Message: "The issue was loaded, but a requested section remained incomplete: " + err.Error(), Cause: err}
 }

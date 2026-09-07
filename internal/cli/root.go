@@ -24,12 +24,12 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 	format := requestedFormat(args)
 	root := &cobra.Command{
 		Use:          "jflow",
-		Short:        "Jira Flow: Jira desde tu terminal",
-		Long:         "Jira Flow · consultas, perfiles y autenticación Jira Cloud.",
+		Short:        "Jira Flow: Jira from your terminal",
+		Long:         "Jira Flow · queries, profiles and Jira Cloud authentication.",
 		SilenceUsage: true, SilenceErrors: true,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return &domain.Error{Kind: domain.InvalidInput, Message: "Selecciona un comando. Consulta jflow --help."}
+			return &domain.Error{Kind: domain.InvalidInput, Message: "Select a command. See jflow --help."}
 		},
 	}
 	root.CompletionOptions.DisableDefaultCmd = true
@@ -37,23 +37,23 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 	root.SetOut(out)
 	root.SetErr(errOut)
 	root.SetArgs(args)
-	root.PersistentFlags().StringVar(&format, "format", format, "Formato de salida: plain, table (listados) o json")
-	root.PersistentFlags().Bool("no-color", false, "Salida sin colores")
-	root.PersistentFlags().Bool("ascii", false, "Salida sin adornos gráficos")
-	root.PersistentFlags().Bool("verbose", false, "Diagnóstico básico redactado por stderr")
+	root.PersistentFlags().StringVar(&format, "format", format, "Output format: plain, table (listings) or json")
+	root.PersistentFlags().Bool("no-color", false, "Output without colors")
+	root.PersistentFlags().Bool("ascii", false, "Output without graphical ornaments")
+	root.PersistentFlags().Bool("verbose", false, "Basic diagnostic output to stderr")
 	root.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		if err := ctx.Err(); err != nil {
-			return &domain.Error{Kind: domain.Canceled, Message: "Operación cancelada.", Cause: err}
+			return &domain.Error{Kind: domain.Canceled, Message: "Operation canceled.", Cause: err}
 		}
 		if format != "plain" && format != "json" && !(format == "table" && cmd.Annotations["collection"] == "true") {
-			return &domain.Error{Kind: domain.InvalidInput, Message: "Formato inválido. Usa plain, json o table para listados."}
+			return &domain.Error{Kind: domain.InvalidInput, Message: "Invalid format. Use plain, json or table for listings."}
 		}
 		if format == "json" {
 			_ = root.PersistentFlags().Set("no-input", "true")
 		}
 		verbose, _ := root.PersistentFlags().GetBool("verbose")
 		if verbose {
-			fmt.Fprintln(errOut, "Ejecutando "+cmd.CommandPath())
+			fmt.Fprintln(errOut, "Running "+cmd.CommandPath())
 		}
 		return nil
 	}
@@ -62,7 +62,7 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 	// Help participates in the JSON contract, including `jflow help version`.
 	root.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
 		if format != "plain" && format != "json" {
-			writeErr = &domain.Error{Kind: domain.InvalidInput, Message: "Formato inválido. Usa plain, json o table para listados."}
+			writeErr = &domain.Error{Kind: domain.InvalidInput, Message: "Invalid format. Use plain, json or table for listings."}
 			return
 		}
 		var buf bytes.Buffer
@@ -79,18 +79,18 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 		}
 	})
 	root.AddCommand(&cobra.Command{
-		Use: "version", Short: "Mostrar versión, commit y plataforma", Args: cobra.NoArgs,
+		Use: "version", Short: "Show version, commit and platform", Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if format == "json" {
 				writeErr = output.Write(out, output.Success(output.VersionData(info)))
 			} else {
-				_, writeErr = fmt.Fprintf(out, "jflow %s\ncommit: %s\nGo: %s\nplataforma: %s/%s\n", info.Version, info.Commit, info.GoVersion, info.OS, info.Arch)
+				_, writeErr = fmt.Fprintf(out, "jflow %s\ncommit: %s\nGo: %s\nplatform: %s/%s\n", info.Version, info.Commit, info.GoVersion, info.OS, info.Arch)
 			}
 			return nil
 		},
 	})
 	root.SetHelpCommand(&cobra.Command{
-		Use: "help [comando...]", Short: "Mostrar ayuda", Args: cobra.ArbitraryArgs,
+		Use: "help [command...]", Short: "Show help", Args: cobra.ArbitraryArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			target := root
 			if len(args) > 0 {
@@ -98,7 +98,7 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 				var err error
 				target, remaining, err = root.Find(args)
 				if err != nil || len(remaining) != 0 {
-					return &domain.Error{Kind: domain.InvalidInput, Message: "Comando desconocido. Consulta jflow --help."}
+					return &domain.Error{Kind: domain.InvalidInput, Message: "Unknown command. See jflow --help."}
 				}
 			}
 			return target.Help()
@@ -130,7 +130,7 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 		if errors.As(writeErr, &public) {
 			err = writeErr
 		} else {
-			fmt.Fprintln(errOut, "No se pudo escribir la salida.")
+			fmt.Fprintln(errOut, "Could not write output.")
 			return 1
 		}
 	}
@@ -143,11 +143,11 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 	var public *domain.Error
 	if !errors.As(err, &public) {
 		// Cobra parse errors can contain arbitrary input; never echo it blindly.
-		err = &domain.Error{Kind: domain.InvalidInput, Message: "Argumentos inválidos. Consulta jflow --help.", Cause: err}
+		err = &domain.Error{Kind: domain.InvalidInput, Message: "Invalid arguments. See jflow --help.", Cause: err}
 	}
 	if format == "json" {
 		if output.Write(out, output.Failure(err)) != nil {
-			fmt.Fprintln(errOut, "No se pudo escribir la salida.")
+			fmt.Fprintln(errOut, "Could not write output.")
 			return 1
 		}
 	} else {

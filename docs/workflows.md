@@ -1,9 +1,9 @@
-# Contrato de workflows
+# Workflow contract
 
-En F0 existen los tipos `Intent`, `Transition`, `FieldSpec`, `PreparedAction` y `ApplyResult`. El algoritmo se implementará en F3, con los escenarios del plan.
+In F0 the types `Intent`, `Transition`, `FieldSpec`, `PreparedAction`, and `ApplyResult` exist. The algorithm will be implemented in F3, with the scenarios from the plan.
 
-`start`, `done` y `close` no son nombres universales de estados. El resolver consultará transiciones frescas; elegirá una regla validada o solicitará decisión cuando haya ambigüedad. Resolver y Cancelar pueden llegar ambos a Done. Nunca se codifican IDs globales.
+`start`, `done`, and `close` are not universal state names. The resolver will fetch fresh transitions; it will choose a validated rule or ask for a decision when there is ambiguity. Done can be reached by both Resolve and Cancel. Global IDs are never hardcoded.
 
-El flujo será preparar → validar campos → confirmar → revalidar → aplicar una vez → verificar. Un POST que pudo llegar al servidor no se reintentará ciegamente. Los resultados reservados son `verified`, `accepted_unverified`, `unknown`, `failed` y `noop`.
+The flow will be prepare → validate fields → confirm → revalidate → apply once → verify. A POST that may have reached the server will not be blindly retried. Reserved results are `verified`, `accepted_unverified`, `unknown`, `failed`, and `noop`.
 
-Los fixtures `transitions.json` y `transitions-ambiguous.json` incluyen destinos y campos para implementar esas pruebas. `transition-required-error.json` representa un rechazo confirmado. Todos son sintéticos.
+Fixtures `transitions.json` and `transitions-ambiguous.json` include destinations and fields to implement those tests. `transition-required-error.json` represents a confirmed rejection. All are synthetic.
