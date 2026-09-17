@@ -187,7 +187,10 @@ func Rows(r app.SearchResult, table bool) string {
 		}
 	}
 	if r.Meta.Stale {
-		b.WriteString("In-memory data expired.\n")
+		b.WriteString("Cached data expired.\n")
+	}
+	if r.Meta.Source != "network" {
+		fmt.Fprintln(&b, freshness(r.Meta))
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }
@@ -282,6 +285,9 @@ func DetailText(r app.DetailResult) string {
 	}
 	for _, warning := range d.Warnings {
 		fmt.Fprintf(&b, "Warning: %s\n", warning)
+	}
+	if r.Meta.Source != "network" {
+		fmt.Fprintln(&b, freshness(r.Meta))
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }

@@ -79,7 +79,26 @@ func addWorkflow(root *cobra.Command, deps Dependencies, access func() (app.Acce
 			return nil, a, err
 		}
 		scope := app.NewReader(source, name, p, token, memory).Scope
-		return &app.Workflow{Reader: source, Gateway: source, Profile: name, Site: p.SiteURL, ExpectedAccount: p.AccountID, Rules: p.WorkflowRules, Invalidate: func() { memory.DeletePrefix(scope + ":") }}, a, nil
+		w := &app.Workflow{Reader: source, Gateway: source, Profile: name, Site: p.SiteURL, ExpectedAccount: p.AccountID, Rules: p.WorkflowRules, Invalidate: func() { memory.DeletePrefix(scope + ":") }}
+		if p.Cache.Persist {
+			disk, err := diskFor(a, name)
+			if err != nil {
+				return nil, a, err
+			}
+			w.BeforeWrite = func(ctx context.Context) error {
+				if err := advanceCacheGeneration(ctx, a, name); err != nil {
+					return err
+				}
+				return cacheError(disk.Clear(ctx))
+			}
+			w.AfterWrite = func(ctx context.Context) error {
+				if err := advanceCacheGeneration(ctx, a, name); err != nil {
+					return err
+				}
+				return cacheError(disk.Clear(ctx))
+			}
+		}
+		return w, a, nil
 	}
 	interactive := func(cmd *cobra.Command, a app.Access, tokenStdin bool) bool {
 		noInput, _ := cmd.Flags().GetBool("no-input")

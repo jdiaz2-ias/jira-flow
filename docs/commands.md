@@ -1,4 +1,4 @@
-# CLI contract (F1–F3)
+# CLI contract (F1–F4)
 
 | Command | Behavior |
 | --- | --- |
@@ -52,7 +52,7 @@ Search pagination: `--limit 50`, `--page-size 50`, `--all`, `--max-results 5000`
 
 `show` loads description, subtasks, and links. `--comments` and `--history` enable their endpoints; `--page-size` controls the request and `--section-limit` the total per section. `--all` walks requested sections up to 5000 items by default. To continue, use `--comments-start`/`--history-start` with each section's `next_start`. A section failure preserves detail in JSON and returns code 10.
 
-Read flags: `--timeout 30s` (up to 10m), `--token-stdin`, `--refresh`, `--offline`. Cache is per-process memory only: it does not survive another `jflow` invocation; offline with no input returns code 5. Listings last 60 s and details 30 s. A 401/403 is not replaced by old data. Transport retries transient reads up to three sends and respects Retry-After within the time budget.
+Read flags: `--timeout 30s` (up to 10m), `--token-stdin`, `--refresh`, `--offline`. Cache is in memory by default; `config set cache.persist true` enables private persistence for the selected profile. Offline misses return code 5. Offline uses the same local credential and query options, without contacting Jira. Listings last 60 s and details 30 s. A 401/403 is not replaced by old data. Transport retries transient reads up to three sends and respects Retry-After within the time budget.
 
 `table` is supported in `mine`, `list`, and `search`; other commands accept plain/JSON. `--no-color` and `--ascii` keep output unadorned; they do not alter Unicode content from Jira. `--verbose` prints the command to stderr without tokens, bodies, or JQL. JSON implies `--no-input`.
 
@@ -72,3 +72,23 @@ Read flags: `--timeout 30s` (up to 10m), `--token-stdin`, `--refresh`, `--offlin
 Mutation commands accept `--transition-id` (alias `--id`), `--fields-file`, `--dry-run`, `--yes`, and `--no-record`. They also support `--timeout`, `--token-stdin`, and global profile, output, and input flags. `transitions` accepts table output; mutations use plain or JSON. JSON implies no-input. Without a terminal, applying requires `--yes`; this flag never resolves ambiguity or supplies missing fields. Mapping writes local configuration and does not transition the issue.
 
 Validation or ambiguity returns 6, stale preparation/mapping returns 7, and an uncertain write or accepted but unverified result returns 9. A no-op returns 0 without sending a write. See [workflows](workflows.md) for examples, field formats, and outcome semantics.
+
+
+## F4: progress, summaries, and persistent cache
+
+| Command | Behavior |
+| --- | --- |
+| `progress KEY` | Status, resolution, visible-subtask fraction, issue-only time, updated and due dates |
+| `progress KEY --history` | Additionally traverse status history, capped by `--history-limit` (default 5000) |
+| `progress KEY --timezone America/Monterrey` | Compare due dates using this IANA timezone; defaults to system local |
+| `summary` | Traverse my pending issues and count categories; no completion percentage |
+| `summary --include-done` | Include completed assignments; permit percentage when fully loaded and categories known |
+| `summary --project APP` | Explicit project scope, including Done by default |
+| `summary --jql QUERY` | Counts over arbitrary JQL; no inferred completion percentage |
+| `config set cache.persist true\|false` | Toggle persistence per profile; default false |
+| `cache status` | Show location, enabled setting, entries, bytes, and stale entries |
+| `cache clear --profile work` | Invalidate and remove cached results for this profile/configuration |
+
+`progress` and `summary` accept the common read flags and plain/JSON output. `summary` also accepts `--status-category`, `--type`, `--priority`, `--updated-since`, `--page-size` (default 100), and `--max-results` (default 5000). It always traverses pages, so it has no `--all` or `--limit`. Its scope is personal unless `--project` or `--jql` is explicit; it does not inherit `default_project` or `JFLOW_PROJECT`. Raw JQL cannot combine with structured filters.
+
+Full rules and pipelines: [progress and scripting](progress-scripting.md).

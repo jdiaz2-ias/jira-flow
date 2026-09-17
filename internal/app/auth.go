@@ -80,6 +80,8 @@ func (a Access) Login(ctx context.Context, name string, p config.Profile, token 
 	var previousRef string
 	err = config.Update(ctx, a.Path, func(c *config.Config) error {
 		old := c.Profiles[name]
+		p.CacheGeneration = old.CacheGeneration + 1
+		p.Cache = old.Cache
 		previousRef = old.Auth.CredentialRef
 		if old.SiteURL == p.SiteURL && old.CloudID == p.CloudID && old.AccountID == p.AccountID {
 			p.WorkflowRules = old.WorkflowRules

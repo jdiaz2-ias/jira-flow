@@ -168,6 +168,30 @@ func TestWorkflowSendsOnceAndVerifiesFields(t *testing.T) {
 		t.Fatal("unexpected fields")
 	}
 }
+
+func TestCacheInvalidationFailureNeverInvitesDuplicateWrite(t *testing.T) {
+	for _, before := range []bool{true, false} {
+		w, f := workflowFixture()
+		fail := func(context.Context) error { return problem(domain.Unavailable, "Cache failure") }
+		if before {
+			w.BeforeWrite = fail
+		} else {
+			w.AfterWrite = fail
+		}
+		p, err := w.Prepare(context.Background(), PrepareOptions{Key: "APP-1", Intent: domain.IntentStart})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := w.Apply(context.Background(), p)
+		if before {
+			if domain.ExitCode(err) != 8 || f.writes != 0 || r.Attempted {
+				t.Fatal(r, err)
+			}
+		} else if err != nil || f.writes != 1 || r.Apply.State != domain.ApplyVerified || len(r.Warnings) != 1 {
+			t.Fatal(r, err)
+		}
+	}
+}
 func TestWorkflowUnknownAndAcceptedUnverifiedNeverResend(t *testing.T) {
 	for _, mode := range []string{"unknown", "different-state", "different-field", "rejected"} {
 		t.Run(mode, func(t *testing.T) {

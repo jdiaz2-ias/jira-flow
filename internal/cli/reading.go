@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +26,7 @@ type readFlags struct {
 
 func (f *readFlags) bind(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&f.refresh, "refresh", false, "Skip cache and query Jira")
-	cmd.Flags().BoolVar(&f.offline, "offline", false, "Use only cache from this process (no persistence in F2)")
+	cmd.Flags().BoolVar(&f.offline, "offline", false, "Use cached results without contacting Jira")
 	cmd.Flags().BoolVar(&f.tokenStdin, "token-stdin", false, "Read ephemeral credential from stdin")
 	cmd.Flags().DurationVar(&f.timeout, "timeout", 30*time.Second, "Total command timeout")
 }
@@ -67,7 +68,9 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 			return nil, err
 		}
 		var source ports.IssueReader
-		if deps.IssueReader != nil {
+		if f.offline {
+			// Resolve the local credential for isolation, without constructing a network client.
+		} else if deps.IssueReader != nil {
 			source, err = deps.IssueReader(p, token)
 		} else {
 			var client *jiracloud.Client
@@ -79,8 +82,20 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 		if err != nil {
 			return nil, err
 		}
-		return app.NewReader(source, name, p, token, memory), nil
+		r := app.NewReader(source, name, p, token, memory)
+		if p.Cache.Persist {
+			if p.AccountID == "" {
+				return nil, &domain.Error{Kind: domain.Authentication, Message: "Run auth login to bind persistent cache to an identity."}
+			}
+			r.Disk, err = diskFor(a, name)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return r, nil
 	}
+	addMetrics(root, access, reader, emit)
+	addCache(root, access, profile, memory, emit)
 	for _, mode := range []string{"mine", "list", "search"} {
 		var f readFlags
 		var q domain.QueryOptions
@@ -267,12 +282,18 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 	// A typed, allowlisted setter makes the F2 default project usable without editing JSON.
 	cfg, _, _ := root.Find([]string{"config"})
 	if cfg != root {
-		set := &cobra.Command{Use: "set KEY VALUE", Short: "Configure default_project for the selected profile", Args: cobra.ExactArgs(2)}
+		set := &cobra.Command{Use: "set KEY VALUE", Short: "Configure default_project or cache.persist for the selected profile", Args: cobra.ExactArgs(2)}
 		set.RunE = func(cmd *cobra.Command, args []string) error {
-			if args[0] != "default_project" || strings.TrimSpace(args[1]) == "" {
-				return &domain.Error{Kind: domain.InvalidInput, Message: "F2 supports config set default_project PROJECT."}
+			if (args[0] != "default_project" && args[0] != "cache.persist") || strings.TrimSpace(args[1]) == "" {
+				return &domain.Error{Kind: domain.InvalidInput, Message: "Use config set default_project PROJECT or config set cache.persist true|false."}
 			}
-			if _, err := (domain.QueryOptions{Mode: "list", Project: args[1]}).Build(); err != nil {
+			persist := false
+			if args[0] == "cache.persist" {
+				if args[1] != "true" && args[1] != "false" {
+					return &domain.Error{Kind: domain.InvalidInput, Message: "cache.persist requires true or false."}
+				}
+				persist, _ = strconv.ParseBool(args[1])
+			} else if _, err := (domain.QueryOptions{Mode: "list", Project: args[1]}).Build(); err != nil {
 				return err
 			}
 			a, err := access()
@@ -287,12 +308,20 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 				}
 				name = n
 				stored := c.Profiles[n]
-				stored.DefaultProject = args[1]
+				if args[0] == "cache.persist" {
+					stored.Cache.Persist = persist
+					stored.CacheGeneration++
+				} else {
+					stored.DefaultProject = args[1]
+				}
 				c.Profiles[n] = stored
 				return nil
 			})
 			if err != nil {
 				return err
+			}
+			if args[0] == "cache.persist" {
+				return emit(output.Success(map[string]any{"profile": name, "cache.persist": persist}), fmt.Sprintf("Persistence: %t. When enabled, Jira content is stored locally without description/comment bodies. Disabling does not delete files; use cache clear.", persist), nil)
 			}
 			return emit(output.Success(map[string]string{"profile": name, "default_project": args[1]}), "Default project: "+args[1], nil)
 		}

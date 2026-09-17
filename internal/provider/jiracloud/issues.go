@@ -50,16 +50,21 @@ type wireIssue struct {
 				Key string `json:"key"`
 			} `json:"statusCategory"`
 		} `json:"status"`
-		Resolution  *wireNamed      `json:"resolution"`
-		Assignee    *wireUser       `json:"assignee"`
-		Project     *wireNamed      `json:"project"`
-		IssueType   *wireNamed      `json:"issuetype"`
-		Priority    *wireNamed      `json:"priority"`
-		Updated     string          `json:"updated"`
-		DueDate     string          `json:"duedate"`
-		Description json.RawMessage `json:"description"`
-		Subtasks    []wireIssue     `json:"subtasks"`
-		Links       []struct {
+		Resolution   *wireNamed      `json:"resolution"`
+		Assignee     *wireUser       `json:"assignee"`
+		Project      *wireNamed      `json:"project"`
+		IssueType    *wireNamed      `json:"issuetype"`
+		Priority     *wireNamed      `json:"priority"`
+		Updated      string          `json:"updated"`
+		DueDate      string          `json:"duedate"`
+		Description  json.RawMessage `json:"description"`
+		TimeTracking struct {
+			Spent     *int64 `json:"timeSpentSeconds"`
+			Remaining *int64 `json:"remainingEstimateSeconds"`
+			Original  *int64 `json:"originalEstimateSeconds"`
+		} `json:"timetracking"`
+		Subtasks []wireIssue `json:"subtasks"`
+		Links    []struct {
 			Type    struct{ Inward, Outward string }
 			Inward  *wireIssue `json:"inwardIssue"`
 			Outward *wireIssue `json:"outwardIssue"`
@@ -178,6 +183,7 @@ func (s *Session) GetIssue(ctx context.Context, ref domain.IssueRef, options dom
 		return result, err
 	}
 	fields := append([]string(nil), ListFields...)
+	fields = append(fields, "timetracking")
 	for _, id := range options.Fields {
 		if !domain.ValidFieldID(id) || id == "comment" {
 			return result, failure(domain.InvalidInput, "Invalid requested verification field.")
@@ -221,6 +227,13 @@ func (s *Session) GetIssue(ctx context.Context, ref domain.IssueRef, options dom
 	if err != nil {
 		return result, err
 	}
+	validSeconds := func(v *int64) *int64 {
+		if v != nil && *v < 0 {
+			return nil
+		}
+		return v
+	}
+	result.Time = domain.TimeTracking{Spent: validSeconds(w.Fields.TimeTracking.Spent), Remaining: validSeconds(w.Fields.TimeTracking.Remaining), Original: validSeconds(w.Fields.TimeTracking.Original)}
 	clean := cleanRemote(s.Profile, s.Secret)
 	if options.IncludeDescription {
 		result.Description, result.Warnings = normalizeADF(w.Fields.Description, clean)

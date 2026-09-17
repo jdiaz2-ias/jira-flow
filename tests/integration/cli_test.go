@@ -33,9 +33,14 @@ func TestBinaryProcessContract(t *testing.T) {
 		{[]string{"show", "../bad", "--format=json"}, 2},
 		{[]string{"mine", "--page-size=0", "--format=json"}, 2},
 		{[]string{"profile", "list", "--format=json"}, 0},
+		{[]string{"progress", "APP-1", "--timezone=invalid", "--format=json"}, 2},
+		{[]string{"summary", "--max-results=0", "--format=json"}, 2},
+		{[]string{"summary", "--format=json"}, 3},
+		{[]string{"cache", "status", "--format=json"}, 0},
+		{[]string{"help", "progress", "--format=json"}, 0},
 	} {
 		cmd := exec.Command(binary, tc.args...)
-		cmd.Env = append(os.Environ(), "TERM=dumb", "NO_COLOR=1", "JFLOW_CONFIG="+configPath, "JFLOW_PROFILE=fixture", "JFLOW_TOKEN=", "JFLOW_EMAIL=")
+		cmd.Env = append(os.Environ(), "TERM=dumb", "NO_COLOR=1", "JFLOW_CONFIG="+configPath, "JFLOW_PROFILE=fixture", "JFLOW_TOKEN=", "JFLOW_EMAIL=", "JFLOW_CACHE="+filepath.Join(filepath.Dir(configPath), "cache"))
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		out, err := cmd.Output()
