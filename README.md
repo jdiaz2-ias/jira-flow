@@ -2,7 +2,7 @@
 
 A CLI for working with Jira from Linux and macOS. Executable: `jflow`.
 
-Current status: **F3, workflow transitions**. Includes profiles, Jira Cloud authentication, issue queries, details, links, and confirmed workflow transitions with field validation and result verification. See [validation F3](docs/validation-f3.md) for results and limits.
+Current status: **F4, progress and scripting**. Includes profiles, Jira Cloud authentication, issue queries, confirmed workflow transitions, measured progress, scoped summaries, and opt-in persistent cache. See [validation F4](docs/validation-f4.md) for results and limits.
 
 ## Quick start
 
@@ -66,7 +66,7 @@ The commit reflects Git when built with Make. `go run ./cmd/jflow version` prese
 
 Use the active profile or add `--profile ias`. Replace `APP` and `APP-123` with real keys. `mine` excludes Done by default; `--include-done` includes it. Listings indicate truncation and offer a cursor to continue with `--page-token`. `show` loads comments/history only when requested; their offsets are controlled with `--comments-start` and `--history-start`.
 
-`--refresh` bypasses the in-memory cache. F2 does not save issues to disk, so `--offline` does not recover results from a previous run. A network query verifies identity once, never per row. The default project is preserved when renewing login.
+`--refresh` bypasses caches. Persistence is off by default; enable it per profile with `jflow config set cache.persist true` to reuse results with `--offline` across invocations. See [progress and scripting](docs/progress-scripting.md) for scope, privacy, and freshness rules. A network query verifies identity once, never per row. The default project is preserved when renewing login.
 
 ## Available commands
 
@@ -86,8 +86,13 @@ Use the active profile or add `--profile ias`. Replace `APP` and `APP-123` with 
 | `jflow mine/list/search` | Listings with filters, pages, and table/JSON format |
 | `jflow show KEY` | Detail with optional sections |
 | `jflow link/open KEY` | Browsable URL and browser opening |
+| `jflow transitions/transition/start/done/close` | Inspect and apply confirmed workflow transitions |
+| `jflow progress KEY` | Subtasks, time, state, and local-calendar due date |
+| `jflow summary` | Scoped category counts, with completion only for a complete population |
+| `jflow config set cache.persist true` | Enable private persistence for the selected profile |
+| `jflow cache status/clear` | Cache usage and profile-scoped removal |
 
-No command returns exit code 2. Help, version, profiles, and `link` do not require a Jira connection. Authenticated queries need read permission in projects.
+Invalid arguments or configuration return exit code 2. Help, version, profiles, and `link` do not require a Jira connection. Authenticated queries need read permission in projects.
 
 ## Development and verification
 
@@ -128,7 +133,7 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 ## Continue implementation
 
 - [Full implementation plan](docs/implementation-plan.md).
-- [Phase status and next increment F4](docs/roadmap.md).
+- [Phase status and next increment F5](docs/roadmap.md).
 - [Architecture and pinned versions](docs/architecture.md).
 - [Authentication and endpoint/scope catalog](docs/authentication.md).
 - [JSON contract and errors](docs/json-contract.md).
@@ -137,4 +142,4 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 - [F1 validation log](docs/validation-f1.md).
 - [F2 validation log](docs/validation-f2.md).
 
-The next phase is F4: progress and scripting. Workflow commands can now modify issues after confirmation; start with `jflow transitions APP-123` and `jflow start APP-123 --dry-run`. See the [workflow guide](docs/workflows.md) before applying changes.
+The next phase is F5: the interactive TUI, built on the existing use cases. Try `jflow progress APP-123` and `jflow summary --include-done --format json`. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) before applying transitions.

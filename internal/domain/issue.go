@@ -47,6 +47,7 @@ type Block struct {
 }
 
 type IssueDetail struct {
+	Time             TimeTracking
 	Issue            Issue
 	Description      []Block
 	Subtasks         []Issue
@@ -56,6 +57,11 @@ type IssueDetail struct {
 	History          *HistoryPage
 	Warnings         []string
 	Values           map[string]FieldValue
+}
+
+// Missing Jira time fields stay unknown; zero is a known value.
+type TimeTracking struct {
+	Spent, Remaining, Original *int64
 }
 type IssueLink struct {
 	Type   string
@@ -99,7 +105,7 @@ type Comment struct {
 	Body      []Block
 	CreatedAt time.Time
 }
-type Change struct{ Field, From, To string }
+type Change struct{ Field, From, To, FieldID, ToID string }
 type HistoryEntry struct {
 	ID        string
 	Author    *User

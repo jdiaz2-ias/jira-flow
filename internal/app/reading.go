@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,6 +52,7 @@ type Reader struct {
 	Profile, Scope, ExpectedAccount string
 	CursorKey                       []byte
 	Cache                           *cache.Memory
+	Disk                            *cache.Disk
 }
 type ReadMeta struct {
 	Profile         string
@@ -76,7 +78,7 @@ type DetailResult struct {
 }
 
 func NewReader(source ports.IssueReader, name string, p config.Profile, token ports.Secret, memory *cache.Memory) *Reader {
-	sum := sha256.Sum256([]byte(name + "\x00" + p.SiteURL + "\x00" + p.CloudID + "\x00" + p.Auth.Method + "\x00" + p.Auth.Email + "\x00" + p.AccountID + "\x00" + p.Auth.CredentialRef + "\x00" + token.Reveal()))
+	sum := sha256.Sum256([]byte(name + "\x00" + p.SiteURL + "\x00" + p.CloudID + "\x00" + p.Auth.Method + "\x00" + p.Auth.Email + "\x00" + p.AccountID + "\x00" + p.Auth.CredentialRef + "\x00" + strconv.FormatUint(p.CacheGeneration, 10) + "\x00" + token.Reveal()))
 	key := sha256.Sum256([]byte("jflow-cursor-v1\x00" + token.Reveal()))
 	if memory == nil {
 		memory = cache.New()
@@ -184,11 +186,33 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 			}
 		}
 	}
+	if r.Disk != nil && !o.Refresh {
+		b, at, stale, e := r.Disk.Get(ctx, cacheKey, o.Offline)
+		if ctx.Err() != nil {
+			return result, problem(domain.Canceled, "Operation canceled.")
+		}
+		if e != nil {
+			result.Warnings = append(result.Warnings, "Persistent cache could not be read.")
+		}
+		var cached SearchResult
+		if len(b) > 0 && json.Unmarshal(b, &cached) == nil {
+			if !o.Offline {
+				if e = r.verify(ctx); e != nil {
+					r.invalidate(ctx)
+					return result, e
+				}
+			}
+			cached.Meta.Source = "disk"
+			cached.Meta.FetchedAt = at
+			cached.Meta.Stale = stale
+			return cached, nil
+		}
+	}
 	if o.Offline {
-		return result, problem(domain.NotFound, "There is no data in the cache for this process. F2 does not save issues to disk; run the query without --offline.")
+		return result, problem(domain.NotFound, "No matching cached query. Enable cache.persist and run this exact query online first; entries expire after seven days.")
 	}
 	if err = r.verify(ctx); err != nil {
-		r.Cache.DeletePrefix(r.Scope + ":")
+		r.invalidate(ctx)
 		return result, err
 	}
 	target := o.Limit
@@ -216,19 +240,24 @@ func (r *Reader) Search(ctx context.Context, o SearchOptions) (SearchResult, err
 			result.Warnings = append(result.Warnings, "Incomplete result; use next_page_token with --page-token to continue.")
 		}
 		if cause != nil {
-			r.Cache.DeletePrefix(r.Scope + ":")
+			r.invalidate(ctx)
 			var public *domain.Error
 			if errors.As(cause, &public) && public.Kind == domain.Canceled {
 				return result, cause
 			}
 			if len(result.Issues) > 0 {
-				r.Cache.DeletePrefix(r.Scope + ":")
+				r.invalidate(ctx)
 				return result, &domain.Error{Kind: domain.Partial, Message: "Reading was incomplete: " + cause.Error(), Cause: cause}
 			}
 			return result, cause
 		}
 		if b, e := json.Marshal(result); e == nil {
 			r.Cache.Put(cacheKey, b, 60*time.Second)
+			if r.Disk != nil {
+				if e := r.Disk.Put(ctx, cacheKey, "search", b, result.Meta.FetchedAt, time.Minute); e != nil {
+					result.Warnings = append(result.Warnings, "Result could not be saved to persistent cache.")
+				}
+			}
 		}
 		return result, nil
 	}
@@ -296,15 +325,40 @@ func (r *Reader) Show(ctx context.Context, key string, o domain.DetailOptions, r
 			}
 		}
 	}
+	if r.Disk != nil && !refresh && (offline || (!o.IncludeDescription && !o.IncludeComments)) {
+		b, at, stale, e := r.Disk.Get(ctx, cacheKey, offline)
+		if ctx.Err() != nil {
+			return result, problem(domain.Canceled, "Operation canceled.")
+		}
+		var cached DetailResult
+		if e == nil && len(b) > 0 && json.Unmarshal(b, &cached) == nil {
+			if !offline {
+				if e = r.verify(ctx); e != nil {
+					r.invalidate(ctx)
+					return result, e
+				}
+			}
+			cached.Meta.Source = "disk"
+			cached.Meta.FetchedAt = at
+			cached.Meta.Stale = stale
+			if o.All && !cached.Meta.Complete {
+				return cached, problem(domain.Partial, "Cached detail omits requested content.")
+			}
+			return cached, nil
+		}
+	}
 	if offline {
-		return result, problem(domain.NotFound, "There is no detail in memory; F2 does not persist issues between invocations.")
+		return result, problem(domain.NotFound, "No matching cached detail. Enable cache.persist and load this issue with the same options online first; entries expire after seven days.")
 	}
 	if err = r.verify(ctx); err != nil {
-		r.Cache.DeletePrefix(r.Scope + ":")
+		r.invalidate(ctx)
 		return result, err
 	}
 	result.Detail, err = r.Source.GetIssue(ctx, domain.IssueRef{Key: key}, o)
 	result.Meta.Complete = err == nil
+	if o.IncludeSubtasks && !result.Detail.SubtasksComplete {
+		result.Meta.Complete = false
+	}
 	if c := result.Detail.Comments; c != nil && !c.Complete {
 		result.Meta.Complete = false
 	}
@@ -312,11 +366,57 @@ func (r *Reader) Show(ctx context.Context, key string, o domain.DetailOptions, r
 		result.Meta.Complete = false
 	}
 	if err != nil {
-		r.Cache.DeletePrefix(r.Scope + ":")
+		r.invalidate(ctx)
 		return result, err
 	}
 	if b, e := json.Marshal(result); e == nil {
 		r.Cache.Put(cacheKey, b, 30*time.Second)
+		if r.Disk != nil {
+			stored := result
+			stored.Detail.Description = nil
+			stored.Detail.Comments = nil
+			stored.Detail.Values = nil
+			stored.Detail.Warnings = append([]string{}, result.Detail.Warnings...)
+			if h := stored.Detail.History; h != nil {
+				cleaned := *h
+				cleaned.Items = append([]domain.HistoryEntry{}, h.Items...)
+				for i, entry := range cleaned.Items {
+					cleaned.Items[i].Changes = nil
+					for _, change := range entry.Changes {
+						if change.FieldID == "description" || change.FieldID == "comment" || change.Field == "description" || change.Field == "comment" {
+							cleaned.Complete = false
+							stored.Meta.Complete = false
+							continue
+						}
+						cleaned.Items[i].Changes = append(cleaned.Items[i].Changes, change)
+					}
+				}
+				if !cleaned.Complete && h.Complete {
+					stored.Detail.Warnings = append(stored.Detail.Warnings, "Description/comment changes are excluded from cached history.")
+				}
+				stored.Detail.History = &cleaned
+			}
+			if o.IncludeDescription || o.IncludeComments {
+				stored.Meta.Complete = false
+				stored.Detail.Warnings = append(stored.Detail.Warnings, "Description and comment bodies are excluded from persistent cache; use an online query to load them.")
+			}
+			b, e := json.Marshal(stored)
+			if e == nil {
+				e = r.Disk.Put(ctx, cacheKey, "detail", b, result.Meta.FetchedAt, 30*time.Second)
+			}
+			if e != nil {
+				result.Detail.Warnings = append(result.Detail.Warnings, "Detail could not be saved to persistent cache.")
+			}
+		}
 	}
 	return result, nil
+}
+
+func (r *Reader) invalidate(ctx context.Context) {
+	r.Cache.DeletePrefix(r.Scope + ":")
+	if r.Disk != nil {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+		defer cancel()
+		_ = r.Disk.Clear(cleanup)
+	}
 }

@@ -1,4 +1,4 @@
-// Package cache implements bounded, process-local storage. No issue data is written to disk.
+// Package cache implements bounded memory and optional private disk storage.
 package cache
 
 import (

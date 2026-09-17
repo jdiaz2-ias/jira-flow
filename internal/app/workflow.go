@@ -17,6 +17,8 @@ type Workflow struct {
 	Profile, Site, ExpectedAccount string
 	Rules                          []domain.WorkflowRule
 	Invalidate                     func()
+	BeforeWrite                    func(context.Context) error
+	AfterWrite                     func(context.Context) error
 	Sleep                          func(context.Context, time.Duration) error
 }
 type Catalog struct {
@@ -243,12 +245,24 @@ func (w *Workflow) Apply(ctx context.Context, p Preparation) (WorkflowResult, er
 	if e = domain.ValidateFields(current.Fields, p.Fields, true); e != nil {
 		return r, e
 	}
+	if w.BeforeWrite != nil {
+		if e := w.BeforeWrite(ctx); e != nil {
+			return r, e
+		}
+	}
 	r.Attempted = true
 	applied, sendErr := w.Gateway.ApplyTransition(ctx, domain.TransitionRequest{Issue: issue.Ref, TransitionID: current.ID, Fields: p.Fields})
 	applied.Before = &issue.Status
 	r.Apply = applied
 	if w.Invalidate != nil {
 		w.Invalidate()
+	}
+	if w.AfterWrite != nil {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+		if e := w.AfterWrite(cleanup); e != nil {
+			r.Warnings = append(r.Warnings, "Persistent cache invalidation failed; run cache clear before reading cached data.")
+		}
+		cancel()
 	}
 	if applied.State == domain.ApplyFailed {
 		if sendErr == nil {

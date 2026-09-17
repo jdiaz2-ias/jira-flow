@@ -43,6 +43,18 @@ Evidence and limits: [validation-f2.md](validation-f2.md). The user confirmed F1
 
 Evidence and limits: [validation-f3.md](validation-f3.md).
 
+## F4: progress and scripting implemented
+
+- [x] `progress`: visible subtasks, issue-only time, estimate consumption, local due dates, and optional complete status history.
+- [x] `summary`: explicit scope, category counts, completeness, and no invented denominator.
+- [x] JSON v1 metrics and partial/canceled/uncertain outcome contracts with CLI and binary checks.
+- [x] Private, opt-in persistence; bounded size/age, profile/identity/credential/generation isolation, `cache status/clear`, and offline reads.
+- [x] Fresh identity validation for online disk hits; invalidation around writes and credential renewal.
+- [x] Documentation of pipelines, unknown metrics, omitted content, and freshness.
+- [ ] F4 acceptance against an authorized real Jira tenant.
+
+Evidence and limits: [validation-f4.md](validation-f4.md).
+
 ## Next increment
 
-F4: progress/scripting. F5: TUI. F6: packaging/acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).
+F5: TUI. F6: packaging/acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).

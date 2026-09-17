@@ -129,9 +129,11 @@ func (s *Session) history(ctx context.Context, key string, o domain.DetailOption
 			Author  *wireUser `json:"author"`
 			Created string    `json:"created"`
 			Items   []struct {
-				Field string `json:"field"`
-				From  string `json:"fromString"`
-				To    string `json:"toString"`
+				Field   string `json:"field"`
+				From    string `json:"fromString"`
+				To      string `json:"toString"`
+				FieldID string `json:"fieldId"`
+				ToID    string `json:"to"`
 			} `json:"items"`
 		}
 		if json.Unmarshal(raw, &w) != nil {
@@ -139,7 +141,7 @@ func (s *Session) history(ctx context.Context, key string, o domain.DetailOption
 		}
 		result := domain.HistoryEntry{ID: clean(w.ID), Author: user(w.Author, clean), CreatedAt: parseTime(w.Created), Changes: []domain.Change{}}
 		for _, item := range w.Items {
-			result.Changes = append(result.Changes, domain.Change{Field: clean(item.Field), From: clean(item.From), To: clean(item.To)})
+			result.Changes = append(result.Changes, domain.Change{Field: clean(item.Field), From: clean(item.From), To: clean(item.To), FieldID: clean(item.FieldID), ToID: clean(item.ToID)})
 		}
 		return result, nil
 	})

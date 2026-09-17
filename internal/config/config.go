@@ -25,6 +25,8 @@ type Auth struct {
 	CredentialRef string `json:"credential_ref,omitempty"`
 }
 type Profile struct {
+	Cache                 CacheOptions          `json:"cache,omitempty"`
+	CacheGeneration       uint64                `json:"cache_generation,omitempty"`
 	WorkflowRules         []domain.WorkflowRule `json:"workflow_rules,omitempty"`
 	DefaultProject        string                `json:"default_project,omitempty"`
 	RetiredCredentialRefs []string              `json:"retired_credential_refs,omitempty"`
@@ -33,6 +35,9 @@ type Profile struct {
 	CloudID               string                `json:"cloud_id,omitempty"`
 	Auth                  Auth                  `json:"auth"`
 	AccountID             string                `json:"account_id,omitempty"`
+}
+type CacheOptions struct {
+	Persist bool `json:"persist"`
 }
 type Config struct {
 	SchemaVersion int                `json:"schema_version"`
@@ -57,6 +62,9 @@ func ResolvePaths(platform, home string, env func(string) string) Paths {
 	}
 	if v := env("JFLOW_CONFIG"); v != "" {
 		p.Config = v
+	}
+	if v := env("JFLOW_CACHE"); filepath.IsAbs(v) {
+		p.Cache = v
 	}
 	return p
 }
