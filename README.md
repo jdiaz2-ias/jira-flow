@@ -2,7 +2,7 @@
 
 A CLI for working with Jira from Linux and macOS. Executable: `jflow`.
 
-Current status: **F4, progress and scripting**. Includes profiles, Jira Cloud authentication, issue queries, confirmed workflow transitions, measured progress, scoped summaries, and opt-in persistent cache. See [validation F4](docs/validation-f4.md) for results and limits.
+Current status: **F5 started: interactive reading preview**. Includes profiles, Jira Cloud authentication, issue queries, confirmed workflow transitions, measured progress, scoped summaries, and opt-in persistent cache. The first TUI increment adds `jflow ui`; see [validation F5](docs/validation-f5.md) for scope and remaining work.
 
 ## Quick start
 
@@ -72,6 +72,7 @@ Use the active profile or add `--profile ias`. Replace `APP` and `APP-123` with 
 
 | Command | Output |
 | --- | --- |
+| `jflow ui` | Interactive reading preview; requires terminal stdin/stdout |
 | `jflow --help` | Help for implemented commands |
 | `jflow help version` | Version help |
 | `jflow version` | Version, commit, Go, and platform |
@@ -108,7 +109,7 @@ make release-check   # Build verification, does not publish artifacts
 
 ## Architecture
 
-Go + Cobra for the CLI; Bubble Tea/Bubbles/Lip Gloss v2 are pinned and checked with the `foundation` build tag. The TUI will be implemented in F5; F1 already integrates the system keyring.
+Go + Cobra for the CLI; Bubble Tea/Bubbles/Lip Gloss v2 are pinned and checked with the `foundation` build tag. F5 now includes a monochrome reading TUI; F1 already integrates the system keyring.
 
 ```text
 cmd/jflow       Process entry and signals
@@ -121,6 +122,7 @@ internal/browser Native macOS/Linux launchers
 internal/secretstore Cancelable macOS/Linux keyring
 internal/domain Issues, progress, workflows, and errors
 internal/ports  Boundaries for Jira and secret storage
+internal/tui    Interactive reading model, cancellation, and keyboard navigation
 internal/output Public JSON contract independent of domain
 internal/foundation Dependency compatibility and keyring audit
 tests/integration   Binary and layer separation tests
@@ -142,4 +144,4 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 - [F1 validation log](docs/validation-f1.md).
 - [F2 validation log](docs/validation-f2.md).
 
-The next phase is F5: the interactive TUI, built on the existing use cases. Try `jflow progress APP-123` and `jflow summary --include-done --format json`. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) before applying transitions.
+F5 has started with `jflow ui`: assigned issues, local filtering, pagination, detail scrolling, refresh, and offline reads. F5 remains open for workflow dialogs, browser actions, remote search, themes, automatic entry/setup, and full keyboard journey acceptance. Try `jflow progress APP-123` and `jflow summary --include-done --format json`. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) before applying transitions.

@@ -92,3 +92,16 @@ Validation or ambiguity returns 6, stale preparation/mapping returns 7, and an u
 `progress` and `summary` accept the common read flags and plain/JSON output. `summary` also accepts `--status-category`, `--type`, `--priority`, `--updated-since`, `--page-size` (default 100), and `--max-results` (default 5000). It always traverses pages, so it has no `--all` or `--limit`. Its scope is personal unless `--project` or `--jql` is explicit; it does not inherit `default_project` or `JFLOW_PROJECT`. Raw JQL cannot combine with structured filters.
 
 Full rules and pipelines: [progress and scripting](progress-scripting.md).
+
+## Interactive reading preview (F5, first increment)
+
+`jflow ui [--profile NAME] [--offline | --refresh] [--timeout 30s]` lists assigned pending issues using the existing application reader and caches. The timeout applies to each request, not the whole session. `JFLOW_TOKEN` and the selected profile's keyring credentials work as in other reading commands.
+
+Both stdin and stdout must be terminals. `TERM=dumb`, `--no-input`, `JFLOW_NO_INPUT=1|true`, and any explicit `--format` are rejected before credential access. Use `mine`/`show --format plain` for screen readers or pipes. Token stdin is not supported by `ui`. The initial presentation is monochrome and ASCII, so `--no-color`, `NO_COLOR`, and `--ascii` require no special rendering.
+
+- `j/k` or arrows: move selection or scroll detail; `Enter`: load selected detail.
+- `/`: edit a filter over loaded keys/summaries only; Enter accepts, Esc clears. Text-field keys never trigger actions.
+- `n`: append the next page, up to 5,000 loaded items; `r`: refresh the current list or detail (cache-only when offline).
+- `Esc`: cancel pending reads and return to the list; `?`: help; `q`/Ctrl+C: exit.
+
+The screen reports cache source, fetch time, staleness, completeness, pagination, warnings, and request errors. It requires 60 columns and 15 rows; smaller terminals show guidance. It uses the alternate screen and restores it on exit. F5 workflow dialogs, browser actions, remote search, themes, split panels, and automatic root/setup entry remain pending. No-argument behavior still returns code 2.

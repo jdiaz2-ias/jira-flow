@@ -94,6 +94,7 @@ func addReading(root *cobra.Command, deps Dependencies, access func() (app.Acces
 		}
 		return r, nil
 	}
+	addUI(root, deps, access, reader)
 	addMetrics(root, access, reader, emit)
 	addCache(root, access, profile, memory, emit)
 	for _, mode := range []string{"mine", "list", "search"} {

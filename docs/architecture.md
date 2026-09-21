@@ -1,6 +1,6 @@
 # F2 Architecture
 
-Domain and ports depend only on the Go standard library. CLI and future TUI consume use cases; adapters implement ports. The integration test `TestCoreHasNoUIOrProviderDependencies` verifies this separation using the real import graph.
+Domain and ports depend only on the Go standard library. CLI and TUI consume use cases; adapters implement ports. The integration test `TestCoreHasNoUIOrProviderDependencies` verifies this separation using the real import graph.
 
 Present domain types: issues, identity, local dates, normalized blocks, query/page, progress, transition fields, intent, prepared action, apply result, and errors. F1 adds `config` for versioned persistence, `app.Access` for access use cases, `provider/jiracloud` for HTTP, and `secretstore` for system credentials. CLI composes dependencies and tests can inject them.
 
@@ -12,7 +12,7 @@ Present domain types: issues, identity, local dates, normalized blocks, query/pa
 | --- | --- | --- |
 | Go | 1.27.1 | Compiler, gofmt, and go vet |
 | Cobra | 1.10.2 | CLI |
-| Bubble Tea | 2.0.9 | F0 compatibility; TUI in F5 |
+| Bubble Tea | 2.0.9 | F5 interactive reading runtime |
 | Bubbles | 2.2.1 | TUI components |
 | Lip Gloss | 2.0.6 | TUI styles |
 | go-keyring | 0.2.8 | Historical foundation audit; active backend uses own processes |

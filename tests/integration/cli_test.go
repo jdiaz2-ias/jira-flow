@@ -27,6 +27,7 @@ func TestBinaryProcessContract(t *testing.T) {
 		code int
 	}{
 		{[]string{"version", "--format=json"}, 0},
+		{[]string{"ui", "--format=json"}, 2},
 		{[]string{"missing", "--format=json"}, 2},
 		{[]string{"--format=json"}, 2},
 		{[]string{"link", "app-123", "--format=json"}, 0},

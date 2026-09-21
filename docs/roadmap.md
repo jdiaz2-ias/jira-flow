@@ -55,6 +55,19 @@ Evidence and limits: [validation-f3.md](validation-f3.md).
 
 Evidence and limits: [validation-f4.md](validation-f4.md).
 
+## F5: interactive interface started
+
+- [x] Explicit `ui` entry with terminal/input guards and existing reader/cache integration.
+- [x] Assigned issues, local filtering, next page, detail scrolling, refresh, and offline reads.
+- [x] Async reads with per-request deadlines, cancellation, generation checks, and sanitized output.
+- [x] Monochrome/ASCII presentation, terminal-size guidance, help, freshness, and errors.
+- [ ] Remote search, responsive two-panel layout, themes, and focus management.
+- [ ] Workflow forms and confirmation dialogs, browser actions, and post-action feedback.
+- [ ] Automatic root entry and setup wizard.
+- [ ] Complete keyboard journey and terminal acceptance on Linux/macOS with real Jira.
+
+Evidence and limits: [validation-f5.md](validation-f5.md).
+
 ## Next increment
 
-F5: TUI. F6: packaging/acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).
+Continue F5 to its full keyboard journey exit criterion. F6: packaging/acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).
