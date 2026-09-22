@@ -2,7 +2,7 @@
 
 A CLI for working with Jira from Linux and macOS. Executable: `jflow`.
 
-Current status: **F4, progress and scripting**. Includes profiles, Jira Cloud authentication, issue queries, confirmed workflow transitions, measured progress, scoped summaries, and opt-in persistent cache. See [validation F4](docs/validation-f4.md) for results and limits.
+Current status: **F5 implemented: interactive Jira workflows**. Includes profiles, Jira Cloud authentication, issue queries, confirmed workflow transitions, measured progress, scoped summaries, and opt-in persistent cache. Run `jflow` or `jflow ui` for the keyboard interface; see [validation F5](docs/validation-f5.md) for evidence and acceptance limits.
 
 ## Quick start
 
@@ -68,10 +68,25 @@ Use the active profile or add `--profile ias`. Replace `APP` and `APP-123` with 
 
 `--refresh` bypasses caches. Persistence is off by default; enable it per profile with `jflow config set cache.persist true` to reuse results with `--offline` across invocations. See [progress and scripting](docs/progress-scripting.md) for scope, privacy, and freshness rules. A network query verifies identity once, never per row. The default project is preserved when renewing login.
 
+## Interactive workflow
+
+```bash
+./bin/jflow                     # Starts the UI in a capable terminal; setup if no profiles exist
+./bin/jflow ui --theme dark     # auto, dark, light, mono
+./bin/jflow ui --ascii --offline
+./bin/jflow ui --accessible     # Plain listing; no full-screen mode
+```
+
+Use arrows or `j/k` to select, Enter for detail, Tab to change focus, `/` for a local filter, and Ctrl+F for a remote JQL query. `s`, `d`, and `x` prepare start, done, and close; `t` lets you choose a transition. Required fields are validated before review. Only `y` in the review dialog confirms a write; Enter does not. `e` edits fields, including optional ones. `o` opens Jira and `y` outside a dialog displays a selectable URL.
+
+The UI preserves drafts on resize and asks before discarding entered fields. A pending write blocks duplicates; uncertain outcomes remain explicit and are never retried automatically. After acknowledging the result, the list and detail refresh. `r` reloads, `n` loads the next page, `?` shows help, and `q` exits. At 110 columns the UI shows two panels; narrower terminals alternate list/detail. The minimum size is 60×15. `NO_COLOR`, `--no-color`, `--ascii`, and the plain CLI provide terminal/accessibility alternatives.
+
 ## Available commands
 
 | Command | Output |
 | --- | --- |
+| `jflow` / `jflow ui` | Interactive reading, workflows, search, and browser actions |
+| `jflow ui --accessible` | Plain listing for screen readers or redirected output |
 | `jflow --help` | Help for implemented commands |
 | `jflow help version` | Version help |
 | `jflow version` | Version, commit, Go, and platform |
@@ -108,7 +123,7 @@ make release-check   # Build verification, does not publish artifacts
 
 ## Architecture
 
-Go + Cobra for the CLI; Bubble Tea/Bubbles/Lip Gloss v2 are pinned and checked with the `foundation` build tag. The TUI will be implemented in F5; F1 already integrates the system keyring.
+Go + Cobra for the CLI; Bubble Tea/Bubbles/Lip Gloss v2 are pinned and checked with the `foundation` build tag. F5 integrates Bubble Tea and Lip Gloss for interactive workflows, layouts, and themes; F1 integrates the system keyring.
 
 ```text
 cmd/jflow       Process entry and signals
@@ -121,6 +136,7 @@ internal/browser Native macOS/Linux launchers
 internal/secretstore Cancelable macOS/Linux keyring
 internal/domain Issues, progress, workflows, and errors
 internal/ports  Boundaries for Jira and secret storage
+internal/tui    Reading/workflow models, dialogs, themes, and keyboard navigation
 internal/output Public JSON contract independent of domain
 internal/foundation Dependency compatibility and keyring audit
 tests/integration   Binary and layer separation tests
@@ -133,7 +149,7 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 ## Continue implementation
 
 - [Full implementation plan](docs/implementation-plan.md).
-- [Phase status and next increment F5](docs/roadmap.md).
+- [Phase status and next increment F6](docs/roadmap.md).
 - [Architecture and pinned versions](docs/architecture.md).
 - [Authentication and endpoint/scope catalog](docs/authentication.md).
 - [JSON contract and errors](docs/json-contract.md).
@@ -142,4 +158,4 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 - [F1 validation log](docs/validation-f1.md).
 - [F2 validation log](docs/validation-f2.md).
 
-The next phase is F5: the interactive TUI, built on the existing use cases. Try `jflow progress APP-123` and `jflow summary --include-done --format json`. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) before applying transitions.
+F5 implements the keyboard journey: query, start, review, complete, and open in the browser. The next phase is F6: packaging, installation, and acceptance with an authorized Jira test tenant. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) for transition semantics.

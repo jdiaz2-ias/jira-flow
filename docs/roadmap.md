@@ -55,6 +55,26 @@ Evidence and limits: [validation-f3.md](validation-f3.md).
 
 Evidence and limits: [validation-f4.md](validation-f4.md).
 
+## F5: interactive interface implemented
+
+- [x] Explicit `ui` and automatic terminal entry; scoped/unscoped setup before full-screen mode.
+- [x] List/detail, local filter, explicit remote JQL search, pagination, refresh, and offline reads.
+- [x] Shared workflow preparation, ambiguous transition selection, required/optional fields, review, confirmation, verification, and action records.
+- [x] Duplicate-write prevention, draft protection, stale-response rejection, uncertain outcomes, and post-action refresh.
+- [x] Browser suspension/resumption, selectable links, keyboard help, focus, and progress metrics.
+- [x] Responsive two-panel/compact layouts, auto/dark/light/mono themes, ASCII, no-color, and accessible plain mode.
+- [x] Automated keyboard journey and setup/signal terminal-restoration coverage in the Linux/macOS CI suite.
+
+Evidence and limits: [validation-f5.md](validation-f5.md). Real-tenant and human terminal acceptance remain unperformed and are tracked with F6 acceptance; synthetic tests do not certify those checks.
+
 ## Next increment
 
-F5: TUI. F6: packaging/acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).
+F6: packaging, installation, and acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).
+
+F6 starting checklist:
+
+- [ ] Define the distribution license and maintainers before publishing.
+- [ ] Configure GoReleaser, Linux/macOS amd64/arm64 archives, checksums, and changelog.
+- [ ] Document installation/removal, keyring/SSH/proxy setup, and generate help/completion.
+- [ ] Record authorized real-Jira acceptance and human terminal checks on Linux/macOS, carrying forward the F1–F5 acceptance limits above.
+- [ ] Review dependencies, licenses, and secret exposure; publish verifiable artifacts only after the delivery acceptance criteria pass.

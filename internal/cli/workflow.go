@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,10 +27,13 @@ import (
 	"jira-flow.local/jflow/internal/provider/jiracloud"
 )
 
-type workflowSession interface {
+// WorkflowSession supplies the read and transition ports for command composition.
+type WorkflowSession interface {
 	ports.IssueReader
 	ports.TransitionGateway
 }
+type workflowSession = WorkflowSession
+
 type workflowFlags struct {
 	timeout    time.Duration
 	tokenStdin bool
@@ -50,55 +52,7 @@ func addWorkflow(root *cobra.Command, deps Dependencies, access func() (app.Acce
 		memory = cache.New()
 	}
 	setup := func(ctx context.Context, cmd *cobra.Command, f workflowFlags) (*app.Workflow, app.Access, error) {
-		a, err := access()
-		if err != nil {
-			return nil, a, err
-		}
-		var token ports.Secret
-		if f.tokenStdin {
-			token, err = readToken(cmd.InOrStdin())
-			if err != nil {
-				return nil, a, err
-			}
-		}
-		name, p, token, err := a.ReadSession(ctx, *profile, *email, token)
-		if err != nil {
-			return nil, a, err
-		}
-		var source workflowSession
-		if deps.Workflow != nil {
-			source, err = deps.Workflow(p, token)
-		} else {
-			var client *jiracloud.Client
-			client, err = jiracloud.New(a.Env("JFLOW_CA_CERT"))
-			if err == nil {
-				source = &jiracloud.Session{Client: client, Profile: p, Secret: token}
-			}
-		}
-		if err != nil {
-			return nil, a, err
-		}
-		scope := app.NewReader(source, name, p, token, memory).Scope
-		w := &app.Workflow{Reader: source, Gateway: source, Profile: name, Site: p.SiteURL, ExpectedAccount: p.AccountID, Rules: p.WorkflowRules, Invalidate: func() { memory.DeletePrefix(scope + ":") }}
-		if p.Cache.Persist {
-			disk, err := diskFor(a, name)
-			if err != nil {
-				return nil, a, err
-			}
-			w.BeforeWrite = func(ctx context.Context) error {
-				if err := advanceCacheGeneration(ctx, a, name); err != nil {
-					return err
-				}
-				return cacheError(disk.Clear(ctx))
-			}
-			w.AfterWrite = func(ctx context.Context) error {
-				if err := advanceCacheGeneration(ctx, a, name); err != nil {
-					return err
-				}
-				return cacheError(disk.Clear(ctx))
-			}
-		}
-		return w, a, nil
+		return setupWorkflow(ctx, cmd, f, deps, access, profile, email, memory)
 	}
 	interactive := func(cmd *cobra.Command, a app.Access, tokenStdin bool) bool {
 		noInput, _ := cmd.Flags().GetBool("no-input")
@@ -297,26 +251,7 @@ func addWorkflow(root *cobra.Command, deps Dependencies, access func() (app.Acce
 				}
 			}
 			result, applyErr := w.Apply(ctx, plan)
-			actionID := ""
-			if result.Attempted && !noRecord {
-				home, homeErr := os.UserHomeDir()
-				if homeErr == nil {
-					paths := config.ResolvePaths(runtime.GOOS, home, a.Env)
-					if a.Env("JFLOW_CONFIG") != "" {
-						paths.State = filepath.Join(filepath.Dir(a.Path), "state")
-					}
-					scope := sha256.Sum256([]byte(w.Profile + "\x00" + w.Site + "\x00" + w.ExpectedAccount))
-					recordCtx, recordCancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
-					var logErr error
-					actionID, logErr = actionlog.Save(recordCtx, filepath.Join(paths.State, "actions", hex.EncodeToString(scope[:])), actionlog.Record{Key: result.Apply.Issue.Key, Intent: plan.Intent, TransitionID: result.Apply.TransitionID, Result: result.Apply.State})
-					recordCancel()
-					if logErr != nil {
-						result.Warnings = append(result.Warnings, "Action metadata could not be fully saved or pruned; this does not change the Jira outcome.")
-					}
-				} else {
-					result.Warnings = append(result.Warnings, "Could not resolve the local action-history directory.")
-				}
-			}
+			actionID := recordWorkflow(ctx, a, w, &result, noRecord)
 			envelope := output.WorkflowEnvelope(result, applyErr)
 			envelope.Data.(map[string]any)["action_id"] = actionID
 			return emit(envelope, output.WorkflowText(result), applyErr)
@@ -429,7 +364,13 @@ func readLine(ctx context.Context, in io.Reader) (string, error) {
 		if ctx.Err() != nil {
 			return "", &domain.Error{Kind: domain.Canceled, Message: "Operation cancelled or deadline exceeded."}
 		}
-		n, err := in.Read(one)
+		var n int
+		var err error
+		if f, ok := in.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+			n, err = terminalByte(ctx, f, one)
+		} else {
+			n, err = in.Read(one)
+		}
 		if n > 0 {
 			if one[0] == '\n' {
 				return strings.TrimSuffix(string(b), "\r"), nil
@@ -437,6 +378,10 @@ func readLine(ctx context.Context, in io.Reader) (string, error) {
 			b = append(b, one[0])
 		}
 		if err != nil {
+			var public *domain.Error
+			if errors.As(err, &public) {
+				return "", err
+			}
 			if err == io.EOF && len(b) > 0 {
 				return string(b), nil
 			}
@@ -482,37 +427,83 @@ func promptField(ctx context.Context, cmd *cobra.Command, f domain.FieldSpec, as
 	if err != nil {
 		return nil, err
 	}
-	var value any
-	switch f.Type {
-	case "adf":
-		value = domain.TextADF(answer)
-	case "string", "date", "datetime":
-		value = answer
-	case "number", "integer":
-		n, e := strconv.ParseFloat(answer, 64)
-		if e != nil {
-			return nil, &domain.Error{Kind: domain.Validation, Message: "Enter a valid number."}
-		}
-		value = n
-	case "boolean":
-		v, e := strconv.ParseBool(answer)
-		if e != nil {
-			return nil, &domain.Error{Kind: domain.Validation, Message: "Enter true or false."}
-		}
-		value = v
-	case "user":
-		value = map[string]any{"accountId": answer}
-	case "option", "resolution", "priority", "issuetype", "project", "version", "component":
-		value = map[string]any{"id": answer}
-	case "array":
-		if json.Unmarshal([]byte(answer), &value) != nil {
-			return nil, &domain.Error{Kind: domain.Validation, Message: "Enter a JSON array of values or ID objects."}
-		}
-	default:
-		return nil, &domain.Error{Kind: domain.Unsupported, Message: "Unsupported field schema. Use jflow open to complete this transition in Jira."}
+	return domain.ParseFieldInput(f, answer)
+}
+
+func setupWorkflow(ctx context.Context, cmd *cobra.Command, f workflowFlags, deps Dependencies, access func() (app.Access, error), profile, email *string, memory *cache.Memory) (*app.Workflow, app.Access, error) {
+	a, err := access()
+	if err != nil {
+		return nil, a, err
 	}
-	if err = domain.ValidateFields([]domain.FieldSpec{f}, map[string]any{f.ID: value}, true); err != nil {
-		return nil, err
+	var token ports.Secret
+	if f.tokenStdin {
+		token, err = readToken(cmd.InOrStdin())
+		if err != nil {
+			return nil, a, err
+		}
 	}
-	return value, nil
+	name, p, token, err := a.ReadSession(ctx, *profile, *email, token)
+	if err != nil {
+		return nil, a, err
+	}
+	var source workflowSession
+	if deps.Workflow != nil {
+		source, err = deps.Workflow(p, token)
+	} else {
+		var client *jiracloud.Client
+		client, err = jiracloud.New(a.Env("JFLOW_CA_CERT"))
+		if err == nil {
+			source = &jiracloud.Session{Client: client, Profile: p, Secret: token}
+		}
+	}
+	if err != nil {
+		return nil, a, err
+	}
+	scope := app.NewReader(source, name, p, token, memory).Scope
+	w := &app.Workflow{Reader: source, Gateway: source, Profile: name, Site: p.SiteURL, ExpectedAccount: p.AccountID, Rules: p.WorkflowRules, Invalidate: func() { memory.DeletePrefix(scope + ":") }}
+	if p.Cache.Persist {
+		disk, err := diskFor(a, name)
+		if err != nil {
+			return nil, a, err
+		}
+		w.BeforeWrite = func(ctx context.Context) error {
+			if err := advanceCacheGeneration(ctx, a, name); err != nil {
+				return err
+			}
+			return cacheError(disk.Clear(ctx))
+		}
+		w.AfterWrite = func(ctx context.Context) error {
+			if err := advanceCacheGeneration(ctx, a, name); err != nil {
+				return err
+			}
+			return cacheError(disk.Clear(ctx))
+		}
+	}
+	return w, a, nil
+
+}
+
+func recordWorkflow(ctx context.Context, a app.Access, w *app.Workflow, result *app.WorkflowResult, noRecord bool) string {
+	actionID := ""
+	if result.Attempted && !noRecord {
+		home, homeErr := os.UserHomeDir()
+		if homeErr == nil {
+			paths := config.ResolvePaths(runtime.GOOS, home, a.Env)
+			if a.Env("JFLOW_CONFIG") != "" {
+				paths.State = filepath.Join(filepath.Dir(a.Path), "state")
+			}
+			scope := sha256.Sum256([]byte(w.Profile + "\x00" + w.Site + "\x00" + w.ExpectedAccount))
+			recordCtx, recordCancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+			var logErr error
+			actionID, logErr = actionlog.Save(recordCtx, filepath.Join(paths.State, "actions", hex.EncodeToString(scope[:])), actionlog.Record{Key: result.Apply.Issue.Key, Intent: result.Plan.Intent, TransitionID: result.Apply.TransitionID, Result: result.Apply.State})
+			recordCancel()
+			if logErr != nil {
+				result.Warnings = append(result.Warnings, "Action metadata could not be fully saved or pruned; this does not change the Jira outcome.")
+			}
+		} else {
+			result.Warnings = append(result.Warnings, "Could not resolve the local action-history directory.")
+		}
+	}
+
+	return actionID
 }

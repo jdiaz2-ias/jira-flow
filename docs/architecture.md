@@ -1,6 +1,6 @@
 # F2 Architecture
 
-Domain and ports depend only on the Go standard library. CLI and future TUI consume use cases; adapters implement ports. The integration test `TestCoreHasNoUIOrProviderDependencies` verifies this separation using the real import graph.
+Domain and ports depend only on the Go standard library. CLI and TUI consume use cases; adapters implement ports. The integration test `TestCoreHasNoUIOrProviderDependencies` verifies this separation using the real import graph.
 
 Present domain types: issues, identity, local dates, normalized blocks, query/page, progress, transition fields, intent, prepared action, apply result, and errors. F1 adds `config` for versioned persistence, `app.Access` for access use cases, `provider/jiracloud` for HTTP, and `secretstore` for system credentials. CLI composes dependencies and tests can inject them.
 
@@ -12,7 +12,7 @@ Present domain types: issues, identity, local dates, normalized blocks, query/pa
 | --- | --- | --- |
 | Go | 1.27.1 | Compiler, gofmt, and go vet |
 | Cobra | 1.10.2 | CLI |
-| Bubble Tea | 2.0.9 | F0 compatibility; TUI in F5 |
+| Bubble Tea | 2.0.9 | F5 interactive workflow runtime |
 | Bubbles | 2.2.1 | TUI components |
 | Lip Gloss | 2.0.6 | TUI styles |
 | go-keyring | 0.2.8 | Historical foundation audit; active backend uses own processes |
@@ -35,3 +35,9 @@ Listings do not load details per row. Comments/history sections use their own of
 Extend `provider/jiracloud` and `workflow` in F3; persistent `cache` in F4; `tui` in F5. Do not create empty packages to pretend implementation. The public format will remain in `output` even when internal types change.
 
 References checked on 2026-09-06: [Go](https://go.dev/dl/?mode=json), [Cobra](https://github.com/spf13/cobra/releases/tag/v1.10.2), [Charm](https://charm.land/blog/v2/), [keyring](https://github.com/zalando/go-keyring/tree/v0.2.8).
+
+## Interactive composition
+
+`internal/tui` consumes reader/workflow interfaces implemented by `app.Reader` and `app.Workflow`. It owns focus, text editing, review dialogs, rendering, and async messages, never transition resolution or HTTP endpoints. CLI composition shares workflow setup, field conversion, cache invalidation, and action logging with normal subcommands. Browser commands release the terminal while the existing launcher runs.
+
+Each read/preparation has a cancelable deadline and generation ID. Apply blocks competing operations until its exact result is received; result acknowledgement then refreshes the list and affected detail. Drafts survive resize and require explicit discard. Plain accessible mode bypasses Bubble Tea entirely. PTY integration uses a synthetic executable and Python's standard library to exercise the actual command/event loop on the CI OS matrix; no external accounts are used.
