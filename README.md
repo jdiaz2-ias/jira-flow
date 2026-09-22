@@ -2,7 +2,7 @@
 
 A CLI for working with Jira from Linux and macOS. Executable: `jflow`.
 
-Current status: **F5 implemented: interactive Jira workflows**. Includes profiles, Jira Cloud authentication, issue queries, confirmed workflow transitions, measured progress, scoped summaries, and opt-in persistent cache. Run `jflow` or `jflow ui` for the keyboard interface; see [validation F5](docs/validation-f5.md) for evidence and acceptance limits.
+Current status: **F6 in progress: distribution candidates and acceptance**. F5's interactive Jira workflows are implemented. Run `jflow` or `jflow ui` for the keyboard interface. `make release-check` builds and verifies four candidate archives; see the [installation guide](docs/install.md) and [F6 validation](docs/validation-f6.md) for delivery status and outstanding acceptance.
 
 ## Quick start
 
@@ -116,7 +116,7 @@ make check            # Format, vet, tests, and dependency audit
 make test-race        # Race detector
 make build-all        # Linux/macOS × amd64/arm64, including future imports
 make security         # Pinned govulncheck; needs network the first time
-make release-check   # Build verification, does not publish artifacts
+make release-check   # Four candidate archives, checksums and native smoke; never publishes
 ```
 
 `make build` produces `bin/jflow`. `make build-all` produces `bin/{linux,darwin}-{amd64,arm64}/jflow`. These directories are ignored by Git. Cross-compilation does not certify execution on the target system; see [compatibility and validation](docs/compatibility.md).
@@ -158,4 +158,10 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 - [F1 validation log](docs/validation-f1.md).
 - [F2 validation log](docs/validation-f2.md).
 
-F5 implements the keyboard journey: query, start, review, complete, and open in the browser. The next phase is F6: packaging, installation, and acceptance with an authorized Jira test tenant. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) for transition semantics.
+F5 implements the keyboard journey: query, start, review, complete, and open in the browser. F6 now provides candidate packaging, generated help/completion and installation guidance; maintainers, real Jira acceptance and human terminal checks remain pending. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) for transition semantics.
+
+## License
+
+Jflow source code and documentation are licensed under the [Apache License, Version 2.0](LICENSE) (SPDX: `Apache-2.0`). Distribution archives include the full license. Third-party dependencies retain their respective licenses; their notices are bundled in `extras/THIRD-PARTY-NOTICES.txt`.
+
+Copyright 2026 Jonathan Emmanuel Diaz Delgadillo. See [NOTICE](NOTICE) for attribution.

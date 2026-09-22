@@ -46,7 +46,14 @@ class Terminal:
         if not os.path.exists(self.log): return []
         with open(self.log) as f: return [json.loads(line) for line in f]
     def finish(self, code=0, alternate=True):
-        self.p.wait(timeout=10)
+        # Keep acting as a terminal while the child flushes its final render and
+        # restores termios. Waiting without draining can fill the PTY buffer and
+        # block shutdown (especially a canceled write's full-screen result).
+        deadline = time.monotonic() + 10
+        while self.p.poll() is None:
+            self.read()
+            if time.monotonic() > deadline:
+                raise AssertionError(("terminal shutdown timed out", self.output))
         self.read(0.2)
         assert self.p.returncode == code, (self.p.returncode, self.output)
         if alternate:

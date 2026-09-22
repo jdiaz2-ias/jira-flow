@@ -104,6 +104,33 @@ func RunWithDependencies(ctx context.Context, args []string, in io.Reader, out, 
 			return target.Help()
 		},
 	})
+	root.AddCommand(&cobra.Command{
+		Use: "completion bash|zsh|fish", Short: "Generate shell completion without installing it", Args: cobra.ExactArgs(1),
+		ValidArgs: []string{"bash", "zsh", "fish"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var script bytes.Buffer
+			var err error
+			switch args[0] {
+			case "bash":
+				err = root.GenBashCompletionV2(&script, true)
+			case "zsh":
+				err = root.GenZshCompletion(&script)
+			case "fish":
+				err = root.GenFishCompletion(&script, true)
+			default:
+				return &domain.Error{Kind: domain.InvalidInput, Message: "Use completion bash, zsh or fish."}
+			}
+			if err != nil {
+				return &domain.Error{Kind: domain.Internal, Message: "Could not generate completion.", Cause: err}
+			}
+			if format == "json" {
+				writeErr = output.Write(out, output.Success(map[string]string{"shell": args[0], "script": script.String()}))
+			} else {
+				_, writeErr = io.Copy(out, &script)
+			}
+			return nil
+		},
+	})
 	addAccess(root, deps, func(data any, plain string) error {
 		if format == "json" {
 			writeErr = output.Write(out, output.Success(data))

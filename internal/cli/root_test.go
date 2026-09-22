@@ -23,6 +23,12 @@ func TestCommandContract(t *testing.T) {
 	}{
 		{"help", []string{"--help"}, 0, false, "version"},
 		{"version", []string{"version"}, 0, false, "jflow test"},
+		{"completion-bash", []string{"completion", "bash"}, 0, false, "__start_jflow"},
+		{"completion-zsh", []string{"completion", "zsh"}, 0, false, "#compdef jflow"},
+		{"completion-fish", []string{"completion", "fish"}, 0, false, "complete -c jflow"},
+		{"completion-json", []string{"completion", "bash", "--format=json"}, 0, true, "script"},
+		{"completion-invalid", []string{"completion", "invalid", "--format=json"}, 2, true, "invalid_input"},
+		{"completion-missing", []string{"completion", "--format=json"}, 2, true, "invalid_input"},
 		{"json", []string{"version", "--format", "json"}, 0, true, "go_version"},
 		{"json-before", []string{"--format=json", "version"}, 0, true, "abc123"},
 		{"json-help", []string{"--help", "--format=json"}, 0, true, "help"},
@@ -87,7 +93,7 @@ type brokenWriter struct{}
 func (brokenWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 
 func TestWriteFailureIsNotSuccess(t *testing.T) {
-	for _, args := range [][]string{{"version"}, {"version", "--format=json"}, {"--help"}} {
+	for _, args := range [][]string{{"version"}, {"version", "--format=json"}, {"--help"}, {"completion", "bash"}, {"completion", "zsh", "--format=json"}} {
 		if code := Run(context.Background(), args, strings.NewReader(""), brokenWriter{}, io.Discard, app.VersionInfo{}); code != 1 {
 			t.Fatalf("%v: code=%d", args, code)
 		}

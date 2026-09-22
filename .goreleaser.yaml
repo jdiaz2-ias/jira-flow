@@ -1,0 +1,44 @@
+version: 2
+project_name: jflow
+before:
+  hooks:
+    - make release-assets
+builds:
+  - id: jflow
+    main: ./cmd/jflow
+    binary: jflow
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+archives:
+  - id: jflow
+    formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
+      - NOTICE
+      - src: docs/install.md
+        dst: INSTALL.md
+      - src: docs/distribution-status.md
+        dst: DISTRIBUTION-STATUS.md
+      - src: bin/release-assets/*
+        dst: extras
+        strip_parent: true
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+snapshot:
+  version_template: '0.0.0-dev-{{ .ShortCommit }}'
+changelog:
+  sort: asc
+  filters:
+    exclude: ['^Merge ']
+release:
+  draft: true
+  prerelease: auto
+  make_latest: false

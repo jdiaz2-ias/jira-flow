@@ -37,3 +37,15 @@ jobs:
           git diff --exit-code -- go.mod go.sum
       - if: runner.os == 'Linux'
         run: make build-all security
+      - name: Package and smoke-test development archives
+        run: make release-check
+      - name: Preserve candidate archives
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: jflow-candidate-${{ github.sha }}
+          path: |
+            dist/*.tar.gz
+            dist/checksums.txt
+          if-no-files-found: error
+          retention-days: 14
