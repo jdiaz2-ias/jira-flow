@@ -19,6 +19,8 @@ assert set(checksums) == {p.name for p in archives}, 'Checksum inventory mismatc
 native = platform.system().lower() + '_' + {'aarch64': 'arm64', 'x86_64': 'amd64'}.get(platform.machine(), platform.machine())
 native_checked = False
 required = {'jflow', 'README.md', 'INSTALL.md', 'DISTRIBUTION-STATUS.md', 'CHANGELOG.md', 'extras/CLI-REFERENCE.md', 'extras/THIRD-PARTY-NOTICES.txt', 'extras/jflow.bash', 'extras/_jflow', 'extras/jflow.fish'}
+legal_files = {name: Path(name).read_bytes() for name in ('LICENSE', 'NOTICE')}
+required.update(legal_files)
 for archive in archives:
     target = '_'.join(archive.name.removesuffix('.tar.gz').split('_')[-2:])
     assert target in expected_targets, target
@@ -27,6 +29,8 @@ for archive in archives:
     with tarfile.open(archive) as tar:
         members = {m.name: m for m in tar.getmembers() if m.isfile()}
         assert required <= members.keys(), f'Missing files in {archive}: {required - members.keys()}'
+        for name, content in legal_files.items():
+            assert tar.extractfile(members[name]).read() == content, f'{name} mismatch in {archive}'
         assert members['jflow'].mode & 0o111, 'Binary is not executable'
         if target == native:
             with tempfile.TemporaryDirectory() as directory:

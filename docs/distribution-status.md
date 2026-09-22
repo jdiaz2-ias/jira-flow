@@ -1,6 +1,6 @@
 # Distribution status
 
-These are development candidate artifacts for F6 evaluation. A project distribution license and maintainer designation are still pending. Third-party license texts are included separately; they do not define Jflow's license.
+These are development candidate artifacts for F6 evaluation. Jflow is licensed under Apache-2.0; the complete text is included in `LICENSE`. Copyright 2026 Jonathan Emmanuel Diaz Delgadillo; attribution is included in `NOTICE`. Maintainer designation remains pending confirmation. Third-party components retain their own licenses, included separately in `extras/THIRD-PARTY-NOTICES.txt`.
 
 No stable release, Homebrew tap, Apple Developer ID signature, notarization, or signed checksum/provenance is claimed. SHA-256 checksums detect corrupted downloads but do not independently authenticate their publisher.
 

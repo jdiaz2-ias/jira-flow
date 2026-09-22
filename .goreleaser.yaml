@@ -20,6 +20,8 @@ archives:
     files:
       - README.md
       - CHANGELOG.md
+      - LICENSE
+      - NOTICE
       - src: docs/install.md
         dst: INSTALL.md
       - src: docs/distribution-status.md

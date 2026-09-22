@@ -69,7 +69,9 @@ Evidence and limits: [validation-f5.md](validation-f5.md). Real-tenant and human
 
 ## F6: distribution and acceptance in progress
 
-- [ ] Define the distribution license and maintainers before publishing.
+- [x] Select Apache-2.0 and include its full text in the repository and all four archives.
+- [x] Attribute copyright to Jonathan Emmanuel Diaz Delgadillo in `NOTICE`, included in every archive.
+- [ ] Confirm maintainers before publishing.
 - [x] Configure GoReleaser, Linux/macOS amd64/arm64 candidate archives, checksums, and changelog; CI preserves candidate artifacts.
 - [x] Document installation/removal, keyring/SSH/proxy setup, and generate help/completion.
 - [ ] Record authorized real-Jira acceptance and human terminal checks on Linux/macOS, carrying forward the F1–F5 acceptance limits above.

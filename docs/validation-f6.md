@@ -8,7 +8,7 @@ Started 2026-09-22 from F5 merge `efa362d`. This increment prepares candidate ar
 - `make release-check` validates configuration, builds a snapshot without publishing, verifies exactly four archive checksums and required contents, and executes native archived `version --format=json` and help.
 - `make release-tool` downloads the pinned upstream tool and verifies its upstream checksum manifest. This is integrity checking, not an independent signature verification.
 - Cobra generates bash/zsh/fish completions with plain and JSON v1 contracts. Invalid shell/missing arguments and output failures are tested.
-- Build-generated recursive help, completions and dependency license texts are included in each archive. Dependency inventory includes the four target platforms, tests and foundation dependencies. The project license remains undecided.
+- Build-generated recursive help, completions and dependency license texts are included in each archive. Dependency inventory includes the four target platforms, tests and foundation dependencies. Apache-2.0 was selected by the owner; the full `LICENSE` is included in every archive and checked byte-for-byte against the repository copy.
 - CI is configured to package on Linux/macOS, smoke-test each native archive and retain the four Linux-built archives plus manifest for 14 days.
 - Installation/removal, profile/keyring, SSH, proxies, completion setup and macOS signing limitations are documented in [install.md](install.md).
 
@@ -24,7 +24,9 @@ No real Jira API, keyring credential, browser, or production issue is used by pa
 
 | Check | Status / evidence needed |
 | --- | --- |
-| Project license and maintainers | Owner decision pending; no license invented |
+| Project license | Apache-2.0 selected; repository and archive license texts included |
+| Copyright holder | Jonathan Emmanuel Diaz Delgadillo, confirmed by the owner; `NOTICE` included in every archive |
+| Maintainers | Designation pending confirmation |
 | Real Jira Cloud reads | Authorized tenant, profile method, date, issue visibility/pagination, missing fields, progress/summary and sanitized results |
 | Real Jira writes | Explicitly designated test issue; dry-run, ambiguity, required fields, start/done/close and verified final state; never retry an uncertain outcome blindly |
 | Human Linux/macOS keyboard journey | Terminal/version, architecture, query → start → review → complete → open, resize, cancellation and restoration |

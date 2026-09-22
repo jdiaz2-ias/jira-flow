@@ -158,4 +158,10 @@ The `jira-flow.local/jflow` module is deliberately local and provisional. The re
 - [F1 validation log](docs/validation-f1.md).
 - [F2 validation log](docs/validation-f2.md).
 
-F5 implements the keyboard journey: query, start, review, complete, and open in the browser. F6 now provides candidate packaging, generated help/completion and installation guidance; license/maintainers, real Jira acceptance and human terminal checks remain pending. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) for transition semantics.
+F5 implements the keyboard journey: query, start, review, complete, and open in the browser. F6 now provides candidate packaging, generated help/completion and installation guidance; maintainers, real Jira acceptance and human terminal checks remain pending. See [progress and scripting](docs/progress-scripting.md) for pipelines and offline use, and the [workflow guide](docs/workflows.md) for transition semantics.
+
+## License
+
+Jflow source code and documentation are licensed under the [Apache License, Version 2.0](LICENSE) (SPDX: `Apache-2.0`). Distribution archives include the full license. Third-party dependencies retain their respective licenses; their notices are bundled in `extras/THIRD-PARTY-NOTICES.txt`.
+
+Copyright 2026 Jonathan Emmanuel Diaz Delgadillo. See [NOTICE](NOTICE) for attribution.
