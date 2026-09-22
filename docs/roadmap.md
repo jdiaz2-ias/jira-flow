@@ -67,14 +67,16 @@ Evidence and limits: [validation-f4.md](validation-f4.md).
 
 Evidence and limits: [validation-f5.md](validation-f5.md). Real-tenant and human terminal acceptance remain unperformed and are tracked with F6 acceptance; synthetic tests do not certify those checks.
 
-## Next increment
-
-F6: packaging, installation, and acceptance. F7: productivity. Criteria in the [full plan](implementation-plan.md).
-
-F6 starting checklist:
+## F6: distribution and acceptance in progress
 
 - [ ] Define the distribution license and maintainers before publishing.
-- [ ] Configure GoReleaser, Linux/macOS amd64/arm64 archives, checksums, and changelog.
-- [ ] Document installation/removal, keyring/SSH/proxy setup, and generate help/completion.
+- [x] Configure GoReleaser, Linux/macOS amd64/arm64 candidate archives, checksums, and changelog; CI preserves candidate artifacts.
+- [x] Document installation/removal, keyring/SSH/proxy setup, and generate help/completion.
 - [ ] Record authorized real-Jira acceptance and human terminal checks on Linux/macOS, carrying forward the F1–F5 acceptance limits above.
 - [ ] Review dependencies, licenses, and secret exposure; publish verifiable artifacts only after the delivery acceptance criteria pass.
+
+Evidence and remaining acceptance: [validation-f6.md](validation-f6.md). Local snapshot packaging is available with `make release-check`; no stable release is published.
+
+## Next phase
+
+F7: productivity, after F6's delivery criteria. Criteria in the [full plan](implementation-plan.md).

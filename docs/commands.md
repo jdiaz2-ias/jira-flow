@@ -125,3 +125,9 @@ Text input owns its keys; letters never trigger workflow shortcuts while typing.
 During Apply, navigation and duplicate mutations are blocked. The shared use case revalidates the prepared issue and transition, sends at most once, invalidates caches, and verifies the destination/fields. Results distinguish verified, no-op, failed, accepted-but-unverified, and unknown. No uncertain write is automatically retried. Exiting while Apply is pending or an uncertain result remains unacknowledged returns uncertain exit code 9; ordinary cancellation returns 130.
 
 The screen reports source, fetched time, staleness, completeness, partial warnings, errors, and measured progress. At 110+ columns list/detail share the screen with approximately 55/45 widths; 80–109 columns alternate focus, and 60–79 use compact rows. Below 60×15 it shows guidance and disables hidden actions. Resizing preserves selection and drafts. Auto theme uses a terminal background response with a dark fallback; `NO_COLOR`/`--no-color` override theme colors. ASCII replaces the panel separator. Jira text is sanitized before styling.
+
+## Completion and release help (F6)
+
+`jflow completion bash|zsh|fish` generates a script without reading credentials, contacting Jira, or changing shell files. Plain output is directly sourceable for the selected shell. With `--format=json`, `data.shell` and `data.script` are returned in the JSON v1 envelope. Unsupported shells and missing arguments return code 2; output failures return code 1.
+
+`make release-assets` generates a recursive CLI help reference, three completion scripts and dependency notices under `bin/release-assets/`. `make release-check` includes these in the four candidate archives and verifies them. Installation instructions: [install.md](install.md).

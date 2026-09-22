@@ -19,3 +19,9 @@ Linux: `secret-tool` executable (libsecret-tools) and a D-Bus session with Secre
 The F0 test under the `foundation` tag remains as an audit of the pinned library; the F1 active backend uses its own cancelable processes.
 
 Reports: [F0](validation-f0.md), [F1](validation-f1.md).
+
+## F6 candidate artifacts
+
+`make release-check` packages all four targets and smoke-tests the archive matching the executing host. On 2026-09-22 the macOS arm64 archive ran `version --format=json` and help successfully. Cross-built Linux amd64/arm64 and macOS amd64 archives passed checksum/content checks locally; that is not execution evidence.
+
+CI is configured for native archive smoke on Ubuntu 24.04 and macOS 15; use the actual run's OS/architecture and result as evidence. Linux arm64 execution, a second stable macOS version, clean-machine installs, human terminal acceptance, and macOS signing/notarization remain pending. See [F6 validation](validation-f6.md).
