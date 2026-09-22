@@ -21,7 +21,7 @@ Explicit stdin credential takes precedence over `JFLOW_TOKEN`, which takes prece
 
 `--format=json` produces a single object with `schema_version`, `ok`, `data`, `meta`, `warnings`, and `error`. It can go before or after the subcommand. JSON help is in `data.help`; `jflow help auth login` works. Normal output is plain text, no colors.
 
-- No subcommand: code 2; no automatic TUI yet.
+- No subcommand: starts the TUI only with terminal stdin/stdout and a capable terminal; otherwise returns code 2 with CLI guidance.
 - Invalid arguments/configuration: 2; authentication: 3; permissions: 4; not found: 5; service unavailable: 8; cancellation: 130.
 - `plain` or `json`; F2 also supports `table` in listings. Last occurrence of `--format` wins; `--` ends options.
 - Write failures: code 1, never success.
@@ -93,15 +93,35 @@ Validation or ambiguity returns 6, stale preparation/mapping returns 7, and an u
 
 Full rules and pipelines: [progress and scripting](progress-scripting.md).
 
-## Interactive reading preview (F5, first increment)
+## Interactive interface (F5)
 
-`jflow ui [--profile NAME] [--offline | --refresh] [--timeout 30s]` lists assigned pending issues using the existing application reader and caches. The timeout applies to each request, not the whole session. `JFLOW_TOKEN` and the selected profile's keyring credentials work as in other reading commands.
+`jflow` or `jflow ui [--profile NAME] [--offline | --refresh] [--timeout 30s] [--theme auto|dark|light|mono] [--ascii] [--no-color] [--no-record]` opens the interactive interface. The timeout bounds each read or workflow operation, not the entire session. Existing profile credentials, project defaults, workflow mappings, caches, and private action records are reused. `--no-record` opts out of action metadata.
 
-Both stdin and stdout must be terminals. `TERM=dumb`, `--no-input`, `JFLOW_NO_INPUT=1|true`, and any explicit `--format` are rejected before credential access. Use `mine`/`show --format plain` for screen readers or pipes. Token stdin is not supported by `ui`. The initial presentation is monochrome and ASCII, so `--no-color`, `NO_COLOR`, and `--ascii` require no special rendering.
+Both stdin and stdout must be terminals. `TERM=dumb`, `--no-input`, `JFLOW_NO_INPUT=1|true`, and an explicit `--format` prevent full-screen entry. With no profiles, the existing login wizard runs before full-screen mode, asks whether the token is scoped, and reads the token with echo disabled. Cancellation restores terminal settings. Token stdin is not supported by `ui`.
 
-- `j/k` or arrows: move selection or scroll detail; `Enter`: load selected detail.
-- `/`: edit a filter over loaded keys/summaries only; Enter accepts, Esc clears. Text-field keys never trigger actions.
-- `n`: append the next page, up to 5,000 loaded items; `r`: refresh the current list or detail (cache-only when offline).
-- `Esc`: cancel pending reads and return to the list; `?`: help; `q`/Ctrl+C: exit.
+`jflow ui --accessible` produces a plain, one-shot assigned-issue listing without full-screen mode or workflow initialization. It works with pipes and `--no-input`; use `show KEY --format plain` for detail and ordinary workflow commands for further actions. Any explicit `--format` remains invalid for `ui`; use the corresponding CLI command for JSON.
 
-The screen reports cache source, fetch time, staleness, completeness, pagination, warnings, and request errors. It requires 60 columns and 15 rows; smaller terminals show guidance. It uses the alternate screen and restores it on exit. F5 workflow dialogs, browser actions, remote search, themes, split panels, and automatic root/setup entry remain pending. No-argument behavior still returns code 2.
+| Key | Behavior |
+| --- | --- |
+| Arrows / `j/k` | Select an issue or scroll focused detail/review |
+| Enter | Load detail, choose a transition, validate field input, or acknowledge a result; never confirms a write |
+| Tab / Shift+Tab | Change list/detail focus |
+| `/` | Edit a filter over loaded keys/summaries only; Enter accepts, Esc clears |
+| Ctrl+F | Edit explicit remote JQL; Enter queries, Esc cancels |
+| `s` / `d` / `x` | Prepare start / done / close using the existing workflow resolver |
+| `t` | Choose from available transitions |
+| `e` in review | Edit required or optional transition fields |
+| `y` in review | Confirm the fully resolved, visible review; long reviews must be scrolled to the end |
+| `n` / Esc in review | Cancel; entered fields require explicit discard confirmation |
+| `o` | Suspend terminal UI, launch browser, restore UI, and report success/failure |
+| `y` outside dialogs | Display a selectable URL; no clipboard or OSC 52 side effect |
+| `n` / `r` | Next page (5,000 loaded-item guard) / refresh current view |
+| `?` | Keyboard help |
+| Esc | Cancel read or return; result acknowledgement refreshes list/detail |
+| `q` / Ctrl+C | Exit with draft protection; during writes Ctrl+C cancels the request and awaits its outcome |
+
+Text input owns its keys; letters never trigger workflow shortcuts while typing. Ctrl+U clears input, and bracketed paste is supported. Fields use the same schema conversion and validation as CLI prompts, including allowed IDs, numbers, dates, booleans, arrays, and plain-text ADF. Unsupported fields can be completed in Jira via `o`. Writes are unavailable offline.
+
+During Apply, navigation and duplicate mutations are blocked. The shared use case revalidates the prepared issue and transition, sends at most once, invalidates caches, and verifies the destination/fields. Results distinguish verified, no-op, failed, accepted-but-unverified, and unknown. No uncertain write is automatically retried. Exiting while Apply is pending or an uncertain result remains unacknowledged returns uncertain exit code 9; ordinary cancellation returns 130.
+
+The screen reports source, fetched time, staleness, completeness, partial warnings, errors, and measured progress. At 110+ columns list/detail share the screen with approximately 55/45 widths; 80–109 columns alternate focus, and 60–79 use compact rows. Below 60×15 it shows guidance and disables hidden actions. Resizing preserves selection and drafts. Auto theme uses a terminal background response with a dark fallback; `NO_COLOR`/`--no-color` override theme colors. ASCII replaces the panel separator. Jira text is sanitized before styling.

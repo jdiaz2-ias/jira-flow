@@ -1,22 +1,23 @@
-# F5 validation: interactive reading increment
+# F5 validation: interactive workflows
 
-Validated locally on macOS arm64, 2026-09-21, using Go 1.27.1. Branch: `feat/f5-tui-reading`, based on the F4 merge `2d000e7`.
+Implementation completed on branch `feat/f5-tui-reading`, starting from the reading increment `137ddee`. Local validation: macOS arm64, Go 1.27.1, 2026-09-21. The Linux/macOS CI matrix runs the same automated suite, including the PTY journey. No real Jira account, issue, keyring, or browser was used by the fixtures.
 
-This starts F5; it does not meet the full phase's query/start/review/complete/browser exit criterion. No real Jira account or issue was accessed or modified for this increment.
+Pre-merge validation repeated on 2026-09-22: `make check test-race build-all build`, `make security`, `go mod verify`, `go mod tidy -diff`, and `git diff --check` all passed. F6's starting checklist is recorded in [roadmap.md](roadmap.md).
 
-Implemented: explicit `jflow ui`, assigned pending issues, detail scrolling, local filtering, pagination, refresh, offline cache reads, keyboard help, small-terminal guidance, monochrome rendering, async commands, per-request deadlines, cancellation, stale-response rejection, and sanitized terminal content. The CLI and TUI share `app.Reader` and its identity/cache behavior.
+F5 implements its keyboard journey: query → start → review → complete → open browser. It also includes remote JQL search, local filtering, pagination, detail/progress, offline reads, required/optional field forms, draft protection, confirmation, post-action refresh, theme selection, adaptive panels, accessible plain output, automatic root entry, and initial scoped/unscoped setup.
 
 Validation:
 
 - `make check`: format, vet, unit/integration tests, and foundation checks pass.
-- `make test-race`: passes.
+- `make test-race`: passes. The PTY fixture is itself compiled with `-race`, so its actual asynchronous event loop is instrumented.
 - `make build-all build`: Linux/macOS amd64/arm64 compile without CGO; local binary built.
 - `make security`: no vulnerabilities found.
-- `go mod verify`: all modules verified. `go mod tidy` promotes the existing ANSI dependency to direct use; no versions changed.
-- Model tests cover navigation, pagination cursors, detail rendering, text-field shortcut isolation, cancellation, old-generation rejection, request errors/partial warnings, sanitized output, and terminal resizing.
-- CLI and binary tests reject noninteractive UI before Jira access and preserve JSON error output.
-- Local macOS pseudoterminal smoke with a temporary synthetic reader: list, Enter to detail, q to exit, alternate-screen entry/exit, and termios restoration passed. The comparison excludes Darwin's transient PENDIN kernel flag. No credentials were used.
+- `go mod verify` and tidy consistency: existing dependency versions preserved; `x/sys` is now a direct dependency for cancelable terminal polling.
+- Model coverage: list/detail navigation, pagination, local/remote text focus, bracketed paste, obsolete responses, cancellation, metadata/errors, output sanitization, themes, sizes, and draft retention.
+- Workflow coverage using the real application resolver: ambiguous choices, required allowed values, explicit review, Enter not confirming, one write, no-op, close selection, stale preparations, unknown outcomes, duplicate blocking, offline rejection, and long/hidden review guards. Existing F3 tests continue to cover HTTP semantics, fresh revalidation, and cache invalidation.
+- CLI composition coverage: root/explicit UI entry, shared workflow setup, action logging, plain accessible mode, terminal/environment guards, and JSON error contracts.
+- PTY integration in `tests/integration/tui_test.go` / `testdata/tui/terminal_journey.py`: root startup, issue detail, start confirmation, complete with resolution field, browser suspension/resumption, JQL search, resize, scoped/unscoped login, hidden token, exit and signal cancellation, including terminal restoration. Python 3 is required for this test and is available on the CI runners; local execution skips it if Python is absent. On Darwin, termios comparisons exclude the transient PENDIN kernel flag.
 
-The sandbox initially blocked Go's default build cache and local HTTP test listeners. Validation used `GOCACHE=/private/tmp/jflow-go-cache`; the full test suite ran with local-listener permission.
+The full test suite needs permission to bind synthetic localhost HTTPS servers and create pseudoterminals. Local runs used `GOCACHE=/private/tmp/jflow-go-cache` and permission for those operations. Tests caught and fixed competing signal handlers that could report success on cancellation, and setup input now polls for cancellation without leaving an input-reading goroutine behind.
 
-Remaining F5 work: remote search, two-panel layout, themes/focus, workflow fields and confirmation dialogs, browser actions, post-action feedback, root automatic entry/setup, and full keyboard acceptance on Linux/macOS against authorized Jira. The current TUI requires explicit `ui`, displays list/detail separately, and provides an accessible CLI alternative through `mine` and `show --format plain`. Cross-compilation does not certify interactive execution on Linux. Persistent offline details retain the existing F4 omissions.
+Acceptance boundaries: automated synthetic PTY coverage is not a human usability session or real Jira tenant acceptance. Authorized real-tenant workflows, Linux/macOS human terminal checks, and distribution remain F6 acceptance work. Persistence retains F4's offline content omissions; no offline mutation or automatic retry is introduced. Clipboard copying remains optional and unimplemented: a selectable URL is always available. Unknown workflow field schemas must be completed in Jira via the browser action.

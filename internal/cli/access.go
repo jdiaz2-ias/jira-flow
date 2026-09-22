@@ -19,10 +19,12 @@ import (
 	"jira-flow.local/jflow/internal/ports"
 	"jira-flow.local/jflow/internal/provider/jiracloud"
 	"jira-flow.local/jflow/internal/secretstore"
+	"jira-flow.local/jflow/internal/tui"
 )
 
 // Dependencies allow command tests to exercise full flows without a real keyring.
 type Dependencies struct {
+	RunUI       func(context.Context, *tui.Model, io.Reader, io.Writer) error
 	Workflow    func(config.Profile, ports.Secret) (workflowSession, error)
 	Interactive func() bool
 	Prompt      func(context.Context, string) (string, error)
@@ -112,28 +114,21 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		interactive = interactive && isFile && term.IsTerminal(int(inputFile.Fd()))
 		if interactive {
 			fmt.Fprintln(cmd.ErrOrStderr(), "Create a personal token: https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/")
-			// Read one byte at a time so prompts never buffer token input ahead of ReadPassword.
+			// Read one byte at a time so prompts never buffer token input ahead of hidden token input.
 			prompt := func(label string, value *string) error {
 				if *value != "" {
 					return nil
 				}
 				fmt.Fprint(cmd.ErrOrStderr(), label+": ")
-				b := []byte{}
-				one := make([]byte, 1)
-				for len(b) < 4096 {
-					n, e := inputFile.Read(one)
-					if n > 0 {
-						if one[0] == '\n' {
-							*value = strings.TrimSpace(string(b))
-							return nil
-						}
-						b = append(b, one[0])
-					}
-					if e != nil {
-						return &domain.Error{Kind: domain.InvalidInput, Message: "Incomplete input."}
-					}
+				answer, err := readLine(cmd.Context(), inputFile)
+				if err != nil {
+					return err
 				}
-				return &domain.Error{Kind: domain.InvalidInput, Message: "Input too long."}
+				if len(answer) > 4096 {
+					return &domain.Error{Kind: domain.InvalidInput, Message: "Input too long."}
+				}
+				*value = strings.TrimSpace(answer)
+				return nil
 			}
 			for _, item := range []struct {
 				label string
@@ -165,11 +160,11 @@ func addAccess(root *cobra.Command, deps Dependencies, emit func(any, string) er
 		} else if interactive {
 			fmt.Fprint(cmd.ErrOrStderr(), "API token (hidden input): ")
 			var b []byte
-			b, err = term.ReadPassword(int(inputFile.Fd()))
+			b, err = readHiddenToken(cmd.Context(), inputFile)
 			fmt.Fprintln(cmd.ErrOrStderr())
 			token = ports.NewSecret(string(b))
 			if err != nil {
-				err = &domain.Error{Kind: domain.InvalidInput, Message: "Could not read token."}
+				return err
 			}
 		} else {
 			return &domain.Error{Kind: domain.Authentication, Message: "Provide JFLOW_TOKEN or --token-stdin; --token VALUE is not accepted."}
